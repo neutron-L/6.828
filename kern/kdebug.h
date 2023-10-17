@@ -3,6 +3,13 @@
 
 #include <inc/types.h>
 
+
+#define SO 1
+#define SOL 2
+#define FUN 4
+#define PSYM 8
+#define SLINE 16
+
 // Debug information about a particular instruction pointer
 struct Eipdebuginfo {
 	const char *eip_file;		// Source code filename for EIP
@@ -15,6 +22,7 @@ struct Eipdebuginfo {
 	int eip_fn_narg;		// Number of function arguments
 };
 
+void show_stab_info(int start, int end, int set);
 int debuginfo_eip(uintptr_t eip, struct Eipdebuginfo *info);
 
 #endif
