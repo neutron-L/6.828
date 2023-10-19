@@ -196,7 +196,7 @@ void mem_init(void)
     // we just set up the mapping anyway.
     // Permissions: kernel RW, user NONE
     // Your code goes here:
-    boot_map_region(kern_pgdir, KERNBASE, 1 << 28, 0, PTE_W);
+    boot_map_region(kern_pgdir, KERNBASE, 1 << 28, 0, PTE_PS | PTE_W);
 
     // Check that the initial page directory has been set up correctly.
     check_kern_pgdir();
@@ -351,6 +351,7 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
     // Fill this function in
     pde_t *pde = &pgdir[PDX(va)];
+    
     if (!(*pde & PTE_P))
     {
         struct PageInfo *pp;
@@ -388,11 +389,21 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
     // Fill this function in
     while (size)
     {
-        pte_t *pte = pgdir_walk(pgdir, (const void *)va, 1);
-        *pte = pa | perm | PTE_P;
-        va += PGSIZE;
-        pa += PGSIZE;
-        size -= PGSIZE;
+        if (perm & PTE_PS)
+        {
+            pde_t * pde = &pgdir[PDX(va)];
+            *pde = pa | perm | PTE_P;
+            assert(size >= (1<<22));
+            size -= 1 << 22;
+        }
+        else
+        {
+            pte_t *pte = pgdir_walk(pgdir, (const void *)va, 1);
+            *pte = pa | perm | PTE_P;
+            va += PGSIZE;
+            pa += PGSIZE;
+            size -= PGSIZE;
+        }
     }
 }
 
