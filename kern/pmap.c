@@ -118,7 +118,7 @@ boot_alloc(uint32_t n)
 // Above ULIM the user cannot read or write.
 void mem_init(void)
 {
-    uint32_t cr0;
+    uint32_t cr0, cr4;
     size_t n;
 
     // Find out how much memory the machine has (npages & npages_basemem).
@@ -200,6 +200,11 @@ void mem_init(void)
 
     // Check that the initial page directory has been set up correctly.
     check_kern_pgdir();
+
+    cr4 = rcr4();
+    cr4 |= CR4_PSE;
+    lcr4(cr4);
+    tlb_invalidate(kern_pgdir, (void *)KERNBASE); // 不需要这个也可以通过修改后的测试
 
     // Switch from the minimal entry page directory to the full kern_pgdir
     // page table we just created.	Our instruction pointer should be
@@ -351,7 +356,7 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 {
     // Fill this function in
     pde_t *pde = &pgdir[PDX(va)];
-    
+
     if (!(*pde & PTE_P))
     {
         struct PageInfo *pp;
@@ -391,9 +396,11 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
     {
         if (perm & PTE_PS)
         {
-            pde_t * pde = &pgdir[PDX(va)];
+            pde_t *pde = &pgdir[PDX(va)];
             *pde = pa | perm | PTE_P;
-            assert(size >= (1<<22));
+            assert(size >= (1 << 22));
+            va += 1 << 22;
+            pa += 1 << 22;
             size -= 1 << 22;
         }
         else
@@ -728,12 +735,12 @@ check_kern_pgdir(void)
 static physaddr_t
 check_va2pa(pde_t *pgdir, uintptr_t va)
 {
-    pte_t *p;
-
-    pgdir = &pgdir[PDX(va)];
-    if (!(*pgdir & PTE_P))
+    pde_t * pde = &pgdir[PDX(va)];
+    if (!(*pde & PTE_P))
         return ~0;
-    p = (pte_t *)KADDR(PTE_ADDR(*pgdir));
+    if ((*pde) & PTE_PS)
+        return PTE_ADDR(*pde) + (va & 0x3fffff);
+    pte_t *p = (pte_t *)KADDR(PTE_ADDR(*pde));
     if (!(p[PTX(va)] & PTE_P))
         return ~0;
     return PTE_ADDR(p[PTX(va)]);
