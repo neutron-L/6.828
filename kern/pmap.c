@@ -583,6 +583,11 @@ void update_perm(pde_t *pgdir, uintptr_t va, uint32_t perm)
     }
 }
 
+void dump_pages(pde_t *pgdir, uintptr_t addr1, uintptr_t addr2, uint32_t virtual)
+{
+
+}
+
 //
 // Invalidate a TLB entry, but only if the page tables being
 // edited are the ones currently in use by the processor.

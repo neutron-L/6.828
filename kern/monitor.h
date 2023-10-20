@@ -17,5 +17,7 @@ int mon_kerninfo(int argc, char **argv, struct Trapframe *tf);
 int mon_backtrace(int argc, char **argv, struct Trapframe *tf);
 int mon_showmappings(int argc, char **argv, struct Trapframe *tf);
 int mon_update(int argc, char **argv, struct Trapframe *tf);
+int mon_dump_ppages(int argc, char **argv, struct Trapframe *tf);
+int mon_dump_vpages(int argc, char **argv, struct Trapframe *tf);
 
 #endif	// !JOS_KERN_MONITOR_H

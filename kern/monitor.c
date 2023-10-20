@@ -32,6 +32,8 @@ static struct Command commands[] = {
                      " in the currently active address space.",
      mon_showmappings},
     {"update", "Update perm of the specified virtual page", mon_update},
+    {"dp", "Update contents of the specified physical pages", mon_dump_ppages},
+    {"dv", "Update contents of the specified virtual pages", mon_dump_vpages},
 };
 
 /***** Implementations of basic kernel monitor commands *****/
@@ -100,13 +102,13 @@ static uint32_t stoi(char *str, uintptr_t *res)
         else if (base == 16)
         {
             if (*str >= 'a' && *str <= 'f')
-                delta = *str - 'a' + 10; 
+                delta = *str - 'a' + 10;
             else if (*str >= 'A' && *str <= 'F')
                 delta = *str - 'A' + 10;
         }
         if (delta == -1)
         {
-            cprintf("%c %d\n",*str, base);
+            cprintf("%c %d\n", *str, base);
             return -1;
         }
         temp = temp * base + delta;
@@ -138,7 +140,6 @@ int mon_showmappings(int argc, char **argv, struct Trapframe *tf)
     return 0;
 }
 
-
 int mon_update(int argc, char **argv, struct Trapframe *tf)
 {
     if (argc != 3)
@@ -154,10 +155,51 @@ int mon_update(int argc, char **argv, struct Trapframe *tf)
         return -1;
     }
     update_perm(kern_pgdir, va, perm);
-    
+
     return 0;
 }
 
+int mon_dump_ppages(int argc, char **argv, struct Trapframe *tf)
+{
+    if (argc != 2 && argc != 3)
+    {
+        cprintf("usage: dp start_va <end_va>\n");
+        return 1;
+    }
+    uintptr_t addr1;
+    uintptr_t addr2;
+    if (stoi(argv[1], &addr1) || (argc == 3 && stoi(argv[2], &addr2)))
+    {
+        cprintf("stoi: invalide number string %s %s", argv[1], argc == 3 ? argv[2] : "");
+        return -1;
+    }
+    if (argc == 2)
+        addr2 = addr1;
+    cprintf("%x %x\n", addr1, addr2);
+    dump_pages(kern_pgdir, addr1, addr2, 0);
+    return 0;
+}
+
+int mon_dump_vpages(int argc, char **argv, struct Trapframe *tf)
+{
+    if (argc != 2 && argc != 3)
+    {
+        cprintf("usage: dv start_va <end_va>\n");
+        return 1;
+    }
+    uintptr_t addr1;
+    uintptr_t addr2;
+    if (stoi(argv[1], &addr1) || (argc == 3 && stoi(argv[2], &addr2)))
+    {
+        cprintf("stoi: invalide number string %s %s", argv[1], argc == 3 ? argv[2] : "");
+        return -1;
+    }
+    if (argc == 2)
+        addr2 = addr1;
+    cprintf("%x %x\n", addr1, addr2);
+    dump_pages(kern_pgdir, addr1, addr2, 1);
+    return 0;
+}
 
 /***** Kernel monitor command interpreter *****/
 
