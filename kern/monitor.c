@@ -25,6 +25,9 @@ static struct Command commands[] = {
     {"help", "Display this list of commands", mon_help},
     {"kerninfo", "Display information about the kernel", mon_kerninfo},
     {"backtrace", "Displays all frames on the stack", mon_backtrace},
+    {"showmappings", "Display the physical page mappings"
+    "(or lack thereof) that apply to a particular range of virtual/linear addresses"
+    " in the currently active address space.", mon_showmappings},
 };
 
 /***** Implementations of basic kernel monitor commands *****/
@@ -35,13 +38,6 @@ int mon_help(int argc, char **argv, struct Trapframe *tf)
 
     for (i = 0; i < ARRAY_SIZE(commands); i++)
         cprintf("%s - %s\n", commands[i].name, commands[i].desc);
-    // show_stab_info(0,1266,SOL);
-    struct Eipdebuginfo info;
-
-    if (debuginfo_eip(0xf010023e, &info) == -1)
-        return -1;
-    cprintf("         %s:%d: %.*s\n", info.eip_file, info.eip_line, info.eip_fn_namelen, info.eip_fn_name);
-
     return 0;
 }
 
@@ -81,6 +77,17 @@ int mon_backtrace(int argc, char **argv, struct Trapframe *tf)
     }
     return 0;
 }
+
+int mon_showmappings(int argc, char **argv, struct Trapframe *tf)
+{
+    if (argc != 3)
+    {
+        cprintf("usage: showmappings <start_va> <end_va>\n");
+        return 1;
+    }
+    return 0;
+}
+
 
 /***** Kernel monitor command interpreter *****/
 
