@@ -17,7 +17,7 @@ static size_t npages_basemem; // Amount of base memory (in pages)
 pde_t *kern_pgdir;                      // Kernel's initial page directory
 struct PageInfo *pages;                 // Physical page state array
 static struct PageInfo *page_free_list; // Free list of physical pages
-
+static int uses;
 // --------------------------------------------------------------
 // Detect machine's physical memory setup.
 // --------------------------------------------------------------
@@ -150,7 +150,7 @@ void mem_init(void)
     // Your code goes here:
     pages = boot_alloc(npages * sizeof(struct PageInfo));
     memset(pages, 0, npages * sizeof(struct PageInfo));
-
+    cprintf("pages size: %x\n", npages * sizeof(struct PageInfo));
     //////////////////////////////////////////////////////////////////////
     // Now that we've allocated the initial kernel data structures, we set
     // up the list of free physical pages. Once we've done so, all further
@@ -173,6 +173,8 @@ void mem_init(void)
     //      (ie. perm = PTE_U | PTE_P)
     //    - pages itself -- kernel RW, user NONE
     // Your code goes here:
+    cprintf("before map: %d\n",uses);
+
     boot_map_region(kern_pgdir, UPAGES, ROUNDUP(npages * sizeof(struct PageInfo), PGSIZE), PADDR(pages), PTE_U);
 
     //////////////////////////////////////////////////////////////////////
@@ -201,6 +203,9 @@ void mem_init(void)
 #else
     boot_map_region(kern_pgdir, KERNBASE, 1 << 28, 0, PTE_W);
 #endif
+
+    cprintf("after map: %d\n",uses);
+
     // Check that the initial page directory has been set up correctly.
     check_kern_pgdir();
 
@@ -297,6 +302,7 @@ page_alloc(int alloc_flags)
     struct PageInfo *pp = page_free_list;
     if (pp)
     {
+        ++uses;
         page_free_list = page_free_list->pp_link;
         if (alloc_flags & ALLOC_ZERO)
             memset(page2kva(pp), 0, PGSIZE);
@@ -322,6 +328,7 @@ void page_free(struct PageInfo *pp)
 
     pp->pp_link = page_free_list;
     page_free_list = pp;
+    --uses;
 }
 
 //
@@ -558,11 +565,12 @@ void showmappings(pde_t *pgdir, uintptr_t sva, uintptr_t dva)
     while (va <= endva)
     {
         pte = pgdir_walk(pgdir, (const void *)va, 0);
-        if (!pte)
-            cprintf("[%x]\tNone\n", PDX(va));
-        else
+        if (pte)
             cprintf("[%x]\t[%x]\t%s\t%x\n", PDX(va), PTX(va), permstr(*pte & 0x3FF), PTE_ADDR(*pte));
-        va += PGSIZE;
+        if (va + PGSIZE < va)
+            break;
+        else
+            va += PGSIZE;
     }
 }
 
