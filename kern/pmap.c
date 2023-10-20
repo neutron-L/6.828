@@ -188,15 +188,15 @@ void mem_init(void)
     // Your code goes here:
     boot_map_region(kern_pgdir, KSTACKTOP - KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W);
 
-    //////////////////////////////////////////////////////////////////////
-    // Map all of physical memory at KERNBASE.
-    // Ie.  the VA range [KERNBASE, 2^32) should map to
-    //      the PA range [0, 2^32 - KERNBASE)
-    // We might not have 2^32 - KERNBASE bytes of physical memory, but
-    // we just set up the mapping anyway.
-    // Permissions: kernel RW, user NONE
-    // Your code goes here:
-    #ifdef HUGEPAGE
+//////////////////////////////////////////////////////////////////////
+// Map all of physical memory at KERNBASE.
+// Ie.  the VA range [KERNBASE, 2^32) should map to
+//      the PA range [0, 2^32 - KERNBASE)
+// We might not have 2^32 - KERNBASE bytes of physical memory, but
+// we just set up the mapping anyway.
+// Permissions: kernel RW, user NONE
+// Your code goes here:
+#ifdef HUGEPAGE
     boot_map_region(kern_pgdir, KERNBASE, 1 << 28, 0, PTE_PS | PTE_W);
 #else
     boot_map_region(kern_pgdir, KERNBASE, 1 << 28, 0, PTE_W);
@@ -413,6 +413,8 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
         {
 #endif
             pte_t *pte = pgdir_walk(pgdir, (const void *)va, 1);
+            if (!pte)
+                panic("boot_map_region: no free memory\n");
             *pte = pa | perm | PTE_P;
             va += PGSIZE;
             pa += PGSIZE;
@@ -522,6 +524,43 @@ void page_remove(pde_t *pgdir, void *va)
         page_decref(pp);
         *pte_store = 0;
         tlb_invalidate(pgdir, va);
+    }
+}
+
+//
+// display the mapping info of va
+//
+//
+void showmappings(pde_t *pgdir, uintptr_t sva, uintptr_t dva)
+{
+    uintptr_t va = sva & ~PGSHIFT;
+    uintptr_t endva = dva & ~PGSHIFT;
+    pte_t *pte;
+
+    static char flags[] = "GSDACTUWP";
+    char buf[10];
+    int len = strlen(flags);
+    memset(buf, 0, sizeof(buf));
+
+    cprintf("PDE\tPTE\tFlags\tPhysical Page\n");
+    while (va <= endva)
+    {
+        pte = pgdir_walk(pgdir, (const void*)va, 0);
+        if (!pte)
+            cprintf("[%x]\tNone\n", PDX(va));
+        else
+        {
+            int perm = *pte & 0x3FF;
+
+            // init
+            memcpy(buf, flags, sizeof(flags)); 
+            for (int i = 0; i < len; ++i)
+                if (!(perm & (1<<i)))
+                    buf[len - i - 1] = '_';
+
+            cprintf("[%x]\t[%x]\t%s\t%x\n", PDX(va), PTX(va), buf, PTE_ADDR(*pte));
+        }
+        va += PGSIZE;
     }
 }
 
@@ -747,10 +786,10 @@ check_va2pa(pde_t *pgdir, uintptr_t va)
     pgdir = &pgdir[PDX(va)];
     if (!(*pgdir & PTE_P))
         return ~0;
-        #ifdef HUGEPAGE
+#ifdef HUGEPAGE
     if ((*pgdir) & PTE_PS)
         return PTE_ADDR(*pgdir) + (va & 0x3fffff);
-        #endif
+#endif
     pte_t *p = (pte_t *)KADDR(PTE_ADDR(*pgdir));
     if (!(p[PTX(va)] & PTE_P))
         return ~0;

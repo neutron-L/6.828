@@ -11,6 +11,8 @@
 #include <kern/monitor.h>
 #include <kern/kdebug.h>
 
+#include <kern/pmap.h>
+
 #define CMDBUF_SIZE 80 // enough for one VGA text line
 
 struct Command
@@ -26,8 +28,9 @@ static struct Command commands[] = {
     {"kerninfo", "Display information about the kernel", mon_kerninfo},
     {"backtrace", "Displays all frames on the stack", mon_backtrace},
     {"showmappings", "Display the physical page mappings"
-    "(or lack thereof) that apply to a particular range of virtual/linear addresses"
-    " in the currently active address space.", mon_showmappings},
+                     "(or lack thereof) that apply to a particular range of virtual/linear addresses"
+                     " in the currently active address space.",
+     mon_showmappings},
 };
 
 /***** Implementations of basic kernel monitor commands *****/
@@ -78,6 +81,41 @@ int mon_backtrace(int argc, char **argv, struct Trapframe *tf)
     return 0;
 }
 
+static uint32_t stoi(char *str, uintptr_t *res)
+{
+    int base = 10;
+    if (str[0] == '0' && (str[1] == 'x' || str[1] == 'X'))
+    {
+        str += 2;
+        base = 16;
+    }
+    uintptr_t temp = 0;
+    int32_t delta;
+    while (*str)
+    {
+        delta = -1;
+        if (*str >= '0' && *str <= '9')
+            delta = *str - '0';
+        else if (base == 16)
+        {
+            if (*str >= 'a' && *str <= 'f')
+                delta = *str - 'a' + 10; 
+            else if (*str >= 'A' && *str <= 'F')
+                delta = *str - 'A' + 10;
+        }
+        if (delta == -1)
+        {
+            cprintf("%c %d\n",*str, base);
+            return -1;
+        }
+        temp = temp * base + delta;
+        ++str;
+    }
+
+    *res = temp;
+    return 0;
+}
+
 int mon_showmappings(int argc, char **argv, struct Trapframe *tf)
 {
     if (argc != 3)
@@ -85,9 +123,17 @@ int mon_showmappings(int argc, char **argv, struct Trapframe *tf)
         cprintf("usage: showmappings <start_va> <end_va>\n");
         return 1;
     }
+    uintptr_t va1;
+    uintptr_t va2;
+    if (stoi(argv[1], &va1) || stoi(argv[2], &va2))
+    {
+        cprintf("stoi: invalide number string %s %s\n", argv[1], argv[2]);
+        return -1;
+    }
+    cprintf("%x %x\n", va1, va2);
+    showmappings(kern_pgdir, va1, va2);
     return 0;
 }
-
 
 /***** Kernel monitor command interpreter *****/
 
