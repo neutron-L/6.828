@@ -31,6 +31,7 @@ static struct Command commands[] = {
                      "(or lack thereof) that apply to a particular range of virtual/linear addresses"
                      " in the currently active address space.",
      mon_showmappings},
+    {"update", "Update perm of the specified virtual page", mon_update},
 };
 
 /***** Implementations of basic kernel monitor commands *****/
@@ -118,22 +119,45 @@ static uint32_t stoi(char *str, uintptr_t *res)
 
 int mon_showmappings(int argc, char **argv, struct Trapframe *tf)
 {
-    if (argc != 3)
+    if (argc != 2 && argc != 3)
     {
-        cprintf("usage: showmappings <start_va> <end_va>\n");
+        cprintf("usage: showmappings start_va <end_va>\n");
         return 1;
     }
     uintptr_t va1;
     uintptr_t va2;
-    if (stoi(argv[1], &va1) || stoi(argv[2], &va2))
+    if (stoi(argv[1], &va1) || (argc == 3 && stoi(argv[2], &va2)))
     {
-        cprintf("stoi: invalide number string %s %s\n", argv[1], argv[2]);
+        cprintf("stoi: invalide number string %s %s", argv[1], argc == 3 ? argv[2] : "");
         return -1;
     }
+    if (argc == 2)
+        va2 = va1;
     cprintf("%x %x\n", va1, va2);
     showmappings(kern_pgdir, va1, va2);
     return 0;
 }
+
+
+int mon_update(int argc, char **argv, struct Trapframe *tf)
+{
+    if (argc != 3)
+    {
+        cprintf("usage: update va perm\n");
+        return 1;
+    }
+    uintptr_t va;
+    uintptr_t perm;
+    if (stoi(argv[1], &va) || stoi(argv[2], &perm))
+    {
+        cprintf("stoi: invalide number string %s %s", argv[1], argv[2]);
+        return -1;
+    }
+    update_perm(kern_pgdir, va, perm);
+    
+    return 0;
+}
+
 
 /***** Kernel monitor command interpreter *****/
 

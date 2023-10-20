@@ -527,40 +527,59 @@ void page_remove(pde_t *pgdir, void *va)
     }
 }
 
-//
-// display the mapping info of va
-//
-//
+// get a easy-to-read format of perm
+static char *
+permstr(uint32_t perm)
+{
+    static char flags[] = "GSDACTUWP";
+    static char buf[10];
+    int len = strlen(flags);
+    memset(buf, 0, sizeof(buf));
+
+    // init
+    memcpy(buf, flags, sizeof(flags));
+    for (int i = 0; i < len; ++i)
+        if (!(perm & (1 << i)))
+            buf[len - i - 1] = '_';
+    return buf;
+}
+// Display in a useful and easy-to-read format all of the physical page mappings
+//  (or lack thereof) that apply to a particular range of virtual/linear addresses
+//   in the currently active address space. For example, you might enter
+//   'showmappings 0x3000 0x5000' to display the physical page mappings and corresponding
+//   permission bits that apply to the pages at virtual addresses 0x3000, 0x4000, and 0x5000.
 void showmappings(pde_t *pgdir, uintptr_t sva, uintptr_t dva)
 {
     uintptr_t va = sva & ~PGSHIFT;
     uintptr_t endva = dva & ~PGSHIFT;
     pte_t *pte;
 
-    static char flags[] = "GSDACTUWP";
-    char buf[10];
-    int len = strlen(flags);
-    memset(buf, 0, sizeof(buf));
-
     cprintf("PDE\tPTE\tFlags\tPhysical Page\n");
     while (va <= endva)
     {
-        pte = pgdir_walk(pgdir, (const void*)va, 0);
+        pte = pgdir_walk(pgdir, (const void *)va, 0);
         if (!pte)
             cprintf("[%x]\tNone\n", PDX(va));
         else
-        {
-            int perm = *pte & 0x3FF;
-
-            // init
-            memcpy(buf, flags, sizeof(flags)); 
-            for (int i = 0; i < len; ++i)
-                if (!(perm & (1<<i)))
-                    buf[len - i - 1] = '_';
-
-            cprintf("[%x]\t[%x]\t%s\t%x\n", PDX(va), PTX(va), buf, PTE_ADDR(*pte));
-        }
+            cprintf("[%x]\t[%x]\t%s\t%x\n", PDX(va), PTX(va), permstr(*pte & 0x3FF), PTE_ADDR(*pte));
         va += PGSIZE;
+    }
+}
+
+// Explicitly set, clear, or change the permissions of any mapping in the current address space.
+void update_perm(pde_t *pgdir, uintptr_t va, uint32_t perm)
+{
+    pte_t *pte;
+
+    pte = pgdir_walk(pgdir, (const void *)va, 0);
+    if (!pte)
+        cprintf("[%x]\tNone\n", PDX(va));
+    else
+    {
+        cprintf("Old Perm: [%x]\t[%x]\t%s\n", PDX(va), PTX(va), permstr(*pte & 0x3FF));
+        *pte &= ~0x3FFF;
+        *pte |= perm;
+        cprintf("New Perm: [%x]\t[%x]\t%s\n", PDX(va), PTX(va), permstr(*pte & 0x3FF));
     }
 }
 
