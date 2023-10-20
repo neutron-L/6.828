@@ -585,7 +585,57 @@ void update_perm(pde_t *pgdir, uintptr_t va, uint32_t perm)
 
 void dump_pages(pde_t *pgdir, uintptr_t addr1, uintptr_t addr2, uint32_t virtual)
 {
+    uintptr_t sva = addr1, dva = addr2;
+    if (!virtual)
+    {
+        sva = (uintptr_t)page2kva(pa2page(sva)) | (sva & 0x3FFF);
+        dva = (uintptr_t)page2kva(pa2page(dva)) | (dva & 0x3FFF);
+    }
+    // 起始地址向下取整对齐32-bit
+    sva = ROUNDDOWN(sva, 4);
+    // 结束地址向上取整对齐32-bit
+    dva = ROUNDUP(dva, 4);
 
+    pte_t *pte;
+
+    for (uintptr_t va = ROUNDDOWN(sva, PGSIZE); va <= ROUNDDOWN(dva, PGSIZE); va += PGSIZE)
+    {
+        uint32_t *start_addr = (uint32_t *)MAX(va, sva);
+        uint32_t *end_addr = (uint32_t *)MIN(va + PGSIZE, dva);
+
+        if (start_addr == end_addr)
+            continue;
+        pte = pgdir_walk(pgdir, (const void *)va, 0);
+
+        if (virtual)
+            cprintf("[%x - %x]:\n", va, va | 0x3FF);
+        else
+            cprintf("[%x - %x]:\n", check_va2pa(kern_pgdir, va), check_va2pa(kern_pgdir, va) | 0x3FF);
+        if (!pte)
+            cprintf("No mapping page\n");
+        else
+        {
+            uint32_t *start_addr = (uint32_t *)MAX(va, sva);
+            uint32_t *end_addr = (uint32_t *)MIN(va + PGSIZE, dva);
+            while (start_addr < end_addr)
+            {
+                if (!((uintptr_t)start_addr % 16))
+                {
+                    if (virtual)
+                        cprintf("%p: ", start_addr);
+                    else
+                        cprintf("%p: ", (uint32_t*)(check_va2pa(kern_pgdir, (uintptr_t)start_addr) | (((uintptr_t)start_addr) & 0x3FF)));
+                }
+                cprintf("0x%08x", *start_addr);
+                if (((uintptr_t)start_addr % 16) == 12)
+                    cprintf("\n");
+                else
+                    cprintf("\t");
+                ++start_addr;
+            }
+            // cprintf("\n");
+        }
+    }
 }
 
 //

@@ -135,7 +135,6 @@ int mon_showmappings(int argc, char **argv, struct Trapframe *tf)
     }
     if (argc == 2)
         va2 = va1;
-    cprintf("%x %x\n", va1, va2);
     showmappings(kern_pgdir, va1, va2);
     return 0;
 }
@@ -175,7 +174,6 @@ int mon_dump_ppages(int argc, char **argv, struct Trapframe *tf)
     }
     if (argc == 2)
         addr2 = addr1;
-    cprintf("%x %x\n", addr1, addr2);
     dump_pages(kern_pgdir, addr1, addr2, 0);
     return 0;
 }
@@ -196,7 +194,6 @@ int mon_dump_vpages(int argc, char **argv, struct Trapframe *tf)
     }
     if (argc == 2)
         addr2 = addr1;
-    cprintf("%x %x\n", addr1, addr2);
     dump_pages(kern_pgdir, addr1, addr2, 1);
     return 0;
 }
