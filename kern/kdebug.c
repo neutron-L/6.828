@@ -45,8 +45,7 @@ void show_stab_info(int start, int end, int set)
             {
                 if (ps->n_value <= preaddr)
                 {
-                    cprintf("fuck: %d %08x\n", j,  ps->n_value);
-
+                    cprintf("error: %d %08x\n", j,  ps->n_value);
                     assert(false);
                 }
                 preaddr = ps->n_type;
