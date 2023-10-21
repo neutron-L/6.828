@@ -55,9 +55,31 @@ static const char *trapname(int trapno)
 		return excnames[trapno];
 	if (trapno == T_SYSCALL)
 		return "System call";
+    cprintf("unknown trap %d\n", trapno);
 	return "(unknown trap)";
 }
 
+extern void divide_handler();
+extern void debug_handler();
+extern void nmi_handler();
+extern void breakpoint_handler();
+
+extern void overflow_handler();
+extern void bound_handler();
+extern void illegal_handler();
+extern void device_handler();
+
+extern void dbfault_handler();
+extern void tss_handler();
+extern void segment_handler();
+extern void stack_handler();
+
+extern void gpflt_handler();
+extern void fperr_handler();
+extern void align_handler();
+
+extern void mchk_handler();
+extern void smiderr_handler();
 
 void
 trap_init(void)
@@ -65,7 +87,9 @@ trap_init(void)
 	extern struct Segdesc gdt[];
 
 	// LAB 3: Your code here.
-
+    SETGATE(idt[T_DIVIDE], 1, GD_KT, divide_handler, 0);
+    SETGATE(idt[T_GPFLT], 1, GD_KT, gpflt_handler, 0);
+    
 	// Per-CPU setup 
 	trap_init_percpu();
 }
