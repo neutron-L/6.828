@@ -153,9 +153,11 @@ void mem_init(void)
     memset(pages, 0, npages * sizeof(struct PageInfo));
 
     //////////////////////////////////////////////////////////////////////
-	// Make 'envs' point to an array of size 'NENV' of 'struct Env'.
-	// LAB 3: Your code here.
-
+    // Make 'envs' point to an array of size 'NENV' of 'struct Env'.
+    // LAB 3: Your code here.
+    envs = boot_alloc(NENV * sizeof(struct Env));
+    memset(envs, 0, NENV * sizeof(struct Env));
+    
     //////////////////////////////////////////////////////////////////////
     // Now that we've allocated the initial kernel data structures, we set
     // up the list of free physical pages. Once we've done so, all further
@@ -168,7 +170,6 @@ void mem_init(void)
     check_page_alloc();
     check_page();
 
-
     //////////////////////////////////////////////////////////////////////
     // Map 'pages' read-only by the user at linear address UPAGES
     // Permissions:
@@ -176,18 +177,16 @@ void mem_init(void)
     //      (ie. perm = PTE_U | PTE_P)
     //    - pages itself -- kernel RW, user NONE
     // Your code goes here:
-
     boot_map_region(kern_pgdir, UPAGES, ROUNDUP(npages * sizeof(struct PageInfo), PGSIZE), PADDR(pages), PTE_U);
 
-
     //////////////////////////////////////////////////////////////////////
-	// Map the 'envs' array read-only by the user at linear address UENVS
-	// (ie. perm = PTE_U | PTE_P).
-	// Permissions:
-	//    - the new image at UENVS  -- kernel R, user R
-	//    - envs itself -- kernel RW, user NONE
-	// LAB 3: Your code here.
-
+    // Map the 'envs' array read-only by the user at linear address UENVS
+    // (ie. perm = PTE_U | PTE_P).
+    // Permissions:
+    //    - the new image at UENVS  -- kernel R, user R
+    //    - envs itself -- kernel RW, user NONE
+    // LAB 3: Your code here.
+    boot_map_region(kern_pgdir, UENVS, ROUNDUP(NENV * sizeof(struct Env), PGSIZE), PADDR(envs), PTE_U);
 
     //////////////////////////////////////////////////////////////////////
     // Use the physical memory that 'bootstack' refers to as the kernel
@@ -202,20 +201,19 @@ void mem_init(void)
     // Your code goes here:
     boot_map_region(kern_pgdir, KSTACKTOP - KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W);
 
-	
-
-	//////////////////////////////////////////////////////////////////////
-	// Use the physical memory that 'bootstack' refers to as the kernel
-	// stack.  The kernel stack grows down from virtual address KSTACKTOP.
-	// We consider the entire range from [KSTACKTOP-PTSIZE, KSTACKTOP)
-	// to be the kernel stack, but break this into two pieces:
-	//     * [KSTACKTOP-KSTKSIZE, KSTACKTOP) -- backed by physical memory
-	//     * [KSTACKTOP-PTSIZE, KSTACKTOP-KSTKSIZE) -- not backed; so if
-	//       the kernel overflows its stack, it will fault rather than
-	//       overwrite memory.  Known as a "guard page".
-	//     Permissions: kernel RW, user NONE
-	// Your code goes here:
-
+    //////////////////////////////////////////////////////////////////////
+    // Map all of physical memory at KERNBASE.
+    // Ie.  the VA range [KERNBASE, 2^32) should map to
+    //      the PA range [0, 2^32 - KERNBASE)
+    // We might not have 2^32 - KERNBASE bytes of physical memory, but
+    // we just set up the mapping anyway.
+    // Permissions: kernel RW, user NONE
+    // Your code goes here:
+    #ifdef HUGEPAGE
+        boot_map_region(kern_pgdir, KERNBASE, 1 << 28, 0, PTE_PS | PTE_W);
+    #else
+        boot_map_region(kern_pgdir, KERNBASE, 1 << 28, 0, PTE_W);
+    #endif
 
     // Check that the initial page directory has been set up correctly.
     check_kern_pgdir();
@@ -641,7 +639,7 @@ void dump_pages(pde_t *pgdir, uintptr_t addr1, uintptr_t addr2, uint32_t virtual
                     if (virtual)
                         cprintf("%p: ", start_addr);
                     else
-                        cprintf("%p: ", (uint32_t*)(check_va2pa(kern_pgdir, (uintptr_t)start_addr) | (((uintptr_t)start_addr) & 0x3FF)));
+                        cprintf("%p: ", (uint32_t *)(check_va2pa(kern_pgdir, (uintptr_t)start_addr) | (((uintptr_t)start_addr) & 0x3FF)));
                 }
                 cprintf("0x%08x", *start_addr);
                 if (((uintptr_t)start_addr % 16) == 12)
@@ -686,12 +684,11 @@ static uintptr_t user_mem_check_addr;
 // Returns 0 if the user program can access this range of addresses,
 // and -E_FAULT otherwise.
 //
-int
-user_mem_check(struct Env *env, const void *va, size_t len, int perm)
+int user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
-	// LAB 3: Your code here.
+    // LAB 3: Your code here.
 
-	return 0;
+    return 0;
 }
 
 //
@@ -701,16 +698,16 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 // If it cannot, 'env' is destroyed and, if env is the current
 // environment, this function will not return.
 //
-void
-user_mem_assert(struct Env *env, const void *va, size_t len, int perm)
+void user_mem_assert(struct Env *env, const void *va, size_t len, int perm)
 {
-	if (user_mem_check(env, va, len, perm | PTE_U) < 0) {
-		cprintf("[%08x] user_mem_check assertion failure for "
-			"va %08x\n", env->env_id, user_mem_check_addr);
-		env_destroy(env);	// may not return
-	}
+    if (user_mem_check(env, va, len, perm | PTE_U) < 0)
+    {
+        cprintf("[%08x] user_mem_check assertion failure for "
+                "va %08x\n",
+                env->env_id, user_mem_check_addr);
+        env_destroy(env); // may not return
+    }
 }
-
 
 // --------------------------------------------------------------
 // Checking functions.
@@ -879,40 +876,44 @@ check_kern_pgdir(void)
     for (i = 0; i < n; i += PGSIZE)
         assert(check_va2pa(pgdir, UPAGES + i) == PADDR(pages) + i);
 
-	// check envs array (new test for lab 3)
-	n = ROUNDUP(NENV*sizeof(struct Env), PGSIZE);
-	for (i = 0; i < n; i += PGSIZE)
-		assert(check_va2pa(pgdir, UENVS + i) == PADDR(envs) + i);
+    // check envs array (new test for lab 3)
+    n = ROUNDUP(NENV * sizeof(struct Env), PGSIZE);
+    for (i = 0; i < n; i += PGSIZE)
+        assert(check_va2pa(pgdir, UENVS + i) == PADDR(envs) + i);
 
     // check kernel stack
     for (i = 0; i < KSTKSIZE; i += PGSIZE)
         assert(check_va2pa(pgdir, KSTACKTOP - KSTKSIZE + i) == PADDR(bootstack) + i);
     assert(check_va2pa(pgdir, KSTACKTOP - PTSIZE) == ~0);
 
-	// check kernel stack
-	for (i = 0; i < KSTKSIZE; i += PGSIZE)
-		assert(check_va2pa(pgdir, KSTACKTOP - KSTKSIZE + i) == PADDR(bootstack) + i);
-	assert(check_va2pa(pgdir, KSTACKTOP - PTSIZE) == ~0);
+    // check kernel stack
+    for (i = 0; i < KSTKSIZE; i += PGSIZE)
+        assert(check_va2pa(pgdir, KSTACKTOP - KSTKSIZE + i) == PADDR(bootstack) + i);
+    assert(check_va2pa(pgdir, KSTACKTOP - PTSIZE) == ~0);
 
-	// check PDE permissions
-	for (i = 0; i < NPDENTRIES; i++) {
-		switch (i) {
-		case PDX(UVPT):
-		case PDX(KSTACKTOP-1):
-		case PDX(UPAGES):
-		case PDX(UENVS):
-			assert(pgdir[i] & PTE_P);
-			break;
-		default:
-			if (i >= PDX(KERNBASE)) {
-				assert(pgdir[i] & PTE_P);
-				assert(pgdir[i] & PTE_W);
-			} else
-				assert(pgdir[i] == 0);
-			break;
-		}
-	}
-	cprintf("check_kern_pgdir() succeeded!\n");
+    // check PDE permissions
+    for (i = 0; i < NPDENTRIES; i++)
+    {
+        switch (i)
+        {
+        case PDX(UVPT):
+        case PDX(KSTACKTOP - 1):
+        case PDX(UPAGES):
+        case PDX(UENVS):
+            assert(pgdir[i] & PTE_P);
+            break;
+        default:
+            if (i >= PDX(KERNBASE))
+            {
+                assert(pgdir[i] & PTE_P);
+                assert(pgdir[i] & PTE_W);
+            }
+            else
+                assert(pgdir[i] == 0);
+            break;
+        }
+    }
+    cprintf("check_kern_pgdir() succeeded!\n");
 }
 
 // This function returns the physical address of the page containing 'va',
