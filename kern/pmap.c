@@ -870,7 +870,7 @@ check_va2pa(pde_t *pgdir, uintptr_t va)
         return ~0;
 #ifdef HUGEPAGE
     if ((*pgdir) & PTE_PS)
-        return PTE_ADDR(*pgdir) + (va & 0x3fffff);
+        return PTE_ADDR(*pgdir);
 #endif
     pte_t *p = (pte_t *)KADDR(PTE_ADDR(*pgdir));
     if (!(p[PTX(va)] & PTE_P))
