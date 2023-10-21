@@ -87,6 +87,7 @@ page2kva(struct PageInfo *pp)
 }
 
 pte_t *pgdir_walk(pde_t *pgdir, const void *va, int create);
+physaddr_t va2pa(pde_t *pgdir, uintptr_t va);
 void showmappings(pde_t * pgdir, uintptr_t sva, uintptr_t dva);
 void update_perm(pde_t *pgdir, uintptr_t va, uint32_t perm);
 void dump_pages(pde_t *pgdir, uintptr_t addr1, uintptr_t addr2, uint32_t virtual);

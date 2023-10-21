@@ -157,7 +157,7 @@ void mem_init(void)
     // LAB 3: Your code here.
     envs = boot_alloc(NENV * sizeof(struct Env));
     memset(envs, 0, NENV * sizeof(struct Env));
-    
+
     //////////////////////////////////////////////////////////////////////
     // Now that we've allocated the initial kernel data structures, we set
     // up the list of free physical pages. Once we've done so, all further
@@ -394,6 +394,25 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 
     pte_t *pte = (pte_t *)KADDR(PTE_ADDR(*pde));
     return &pte[PTX(va)];
+}
+
+//
+// using pgdir to translate va
+//
+physaddr_t 
+va2pa(pde_t *pgdir, uintptr_t va)
+{
+    pgdir = &pgdir[PDX(va)];
+    if (!(*pgdir & PTE_P))
+        return ~0;
+#ifdef HUGEPAGE
+    if ((*pgdir) & PTE_PS)
+        return PTE_ADDR(*pgdir) + (va & 0x3fffff);
+#endif
+    pte_t *p = (pte_t *)KADDR(PTE_ADDR(*pgdir));
+    if (!(p[PTX(va)] & PTE_P))
+        return ~0;
+    return PTE_ADDR(p[PTX(va)]);
 }
 
 //
