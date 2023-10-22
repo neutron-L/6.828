@@ -65,6 +65,7 @@ TRAPHANDLER(HANDLER(segment), T_SEGNP)
 
 TRAPHANDLER(HANDLER(stack), T_STACK)
 TRAPHANDLER(HANDLER(gpflt), T_GPFLT)
+TRAPHANDLER(HANDLER(pgflt), T_PGFLT)
 
 
 TRAPHANDLER(HANDLER(fperr), T_FPERR)
@@ -93,7 +94,7 @@ trap_table:
     
     .long HANDLER(stack)
     .long HANDLER(gpflt)
-    .long HANDLER(page_fault)
+    .long HANDLER(pgflt)
     .long 0
 
     .long HANDLER(fperr)
