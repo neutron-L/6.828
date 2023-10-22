@@ -86,8 +86,11 @@ void trap_init(void)
     SETGATE(idt[T_DIVIDE], 0, GD_KT, trap_table[T_DIVIDE], 0);
     SETGATE(idt[T_DEBUG], 0, GD_KT, trap_table[T_DEBUG], 0);
     SETGATE(idt[T_BRKPT], 0, GD_KT, trap_table[T_BRKPT], 3);
+
     SETGATE(idt[T_GPFLT], 1, GD_KT, trap_table[T_GPFLT], 0);
     SETGATE(idt[T_PGFLT], 1, GD_KT, trap_table[T_PGFLT], 0);
+    
+    SETGATE(idt[T_SYSCALL], 0, GD_KT, trap_table[T_SYSCALL], 3);
     // Per-CPU setup
     trap_init_percpu();
 }
@@ -182,7 +185,9 @@ trap_dispatch(struct Trapframe *tf)
         /* code */
         page_fault_handler(tf);
         return;
-
+    case T_SYSCALL:
+        do_syscall(tf);
+        return;
     default:
         break;
     }
@@ -255,4 +260,10 @@ void page_fault_handler(struct Trapframe *tf)
             curenv->env_id, fault_va, tf->tf_eip);
     print_trapframe(tf);
     env_destroy(curenv);
+}
+
+void do_syscall(struct Trapframe *tf)
+{
+    tf->tf_regs.reg_eax = syscall(tf->tf_regs.reg_eax, tf->tf_regs.reg_edx, tf->tf_regs.reg_ecx, 
+        tf->tf_regs.reg_ebx, tf->tf_regs.reg_edi, tf->tf_regs.reg_esi);
 }

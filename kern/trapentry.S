@@ -73,6 +73,8 @@ TRAPHANDLER(HANDLER(align), T_ALIGN)
 TRAPHANDLER_NOEC(HANDLER(mchk), T_MCHK)
 TRAPHANDLER_NOEC(HANDLER(smiderr), T_SIMDERR)
 
+TRAPHANDLER_NOEC(HANDLER(syscall), T_SYSCALL)
+
 .data
     .align 4
     .global trap_table
@@ -101,6 +103,43 @@ trap_table:
     .long HANDLER(align)
     .long HANDLER(mchk)
     .long HANDLER(smiderr)
+
+    .long 0
+    .long 0
+    .long 0
+    .long 0
+
+    .long 0
+    .long 0
+    .long 0
+    .long 0
+
+    .long 0
+    .long 0
+    .long 0
+    .long 0
+
+    .long 0
+    .long 0
+    .long 0
+    .long 0
+
+    .long 0
+    .long 0
+    .long 0
+    .long 0
+
+    .long 0
+    .long 0
+    .long 0
+    .long 0
+
+    .long 0
+    .long 0
+    .long 0
+    .long 0
+
+    .long HANDLER(syscall)
 
 
 /*
