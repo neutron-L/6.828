@@ -84,6 +84,7 @@ void trap_init(void)
 
     // LAB 3: Your code here.
     SETGATE(idt[T_DIVIDE], 0, GD_KT, trap_table[T_DIVIDE], 0);
+    SETGATE(idt[T_DEBUG], 0, GD_KT, trap_table[T_DEBUG], 0);
     SETGATE(idt[T_BRKPT], 0, GD_KT, trap_table[T_BRKPT], 3);
     SETGATE(idt[T_GPFLT], 1, GD_KT, trap_table[T_GPFLT], 0);
     SETGATE(idt[T_PGFLT], 1, GD_KT, trap_table[T_PGFLT], 0);
@@ -165,8 +166,16 @@ trap_dispatch(struct Trapframe *tf)
     // LAB 3: Your code here.
     switch (tf->tf_trapno)
     {
+    case T_DEBUG: // 单步调试
     case T_BRKPT:
-        /* code */
+        /* 设置TF位 */
+        asm volatile(
+            "\tpushf\n"
+            "\tandl $0xFFFFFEFF, (%%esp)\n"
+            "\tpopf\n"
+            :::"memory"
+        );
+        tf->tf_eflags |= 0x100;
         monitor(tf);
         return;
     case T_PGFLT:

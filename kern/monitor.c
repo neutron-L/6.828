@@ -13,6 +13,7 @@
 #include <kern/trap.h>
 
 #include <kern/pmap.h>
+#include <kern/env.h>
 
 #define CMDBUF_SIZE 80 // enough for one VGA text line
 
@@ -35,6 +36,7 @@ static struct Command commands[] = {
     {"update", "Update perm of the specified virtual page", mon_update},
     {"dp", "Update contents of the specified physical pages", mon_dump_ppages},
     {"dv", "Update contents of the specified virtual pages", mon_dump_vpages},
+    {"continue", " Single-stepping", mon_single_stepping},
 };
 
 /***** Implementations of basic kernel monitor commands *****/
@@ -196,6 +198,13 @@ int mon_dump_vpages(int argc, char **argv, struct Trapframe *tf)
     if (argc == 2)
         addr2 = addr1;
     dump_pages(kern_pgdir, addr1, addr2, 1);
+    return 0;
+}
+
+int mon_single_stepping(int argc, char **argv, struct Trapframe *tf)
+{
+    cprintf("ip: %x\n", tf->tf_eip);
+    env_pop_tf(tf);
     return 0;
 }
 
