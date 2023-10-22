@@ -135,7 +135,6 @@ stab_binsearch(const struct Stab *stabs, int *region_left, int *region_right,
         {
             // exact match for 'addr', but continue loop to find
             // *region_right
-            cprintf("fuck equal\n");
             *region_left = m;
             l = m;
             addr++;
@@ -152,11 +151,7 @@ stab_binsearch(const struct Stab *stabs, int *region_left, int *region_right,
              l--)
             /* do nothing */;
         if (*region_left != l)
-        {
-            cprintf("fuck change\n");
-
             *region_left = l;
-        }
     }
 }
 
@@ -198,6 +193,7 @@ int debuginfo_eip(uintptr_t addr, struct Eipdebuginfo *info)
 		// Make sure this memory is valid.
 		// Return -1 if it is not.  Hint: Call user_mem_check.
 		// LAB 3: Your code here.
+        user_mem_assert(curenv, (const void*)usd, sizeof(struct UserStabData), PTE_U | PTE_W);
 
 		stabs = usd->stabs;
 		stab_end = usd->stab_end;
@@ -206,6 +202,9 @@ int debuginfo_eip(uintptr_t addr, struct Eipdebuginfo *info)
 
 		// Make sure the STABS and string table memory is valid.
 		// LAB 3: Your code here.
+        user_mem_assert(curenv, (const void*)stabs, (const char *)stab_end - (const char*)stabs, PTE_U);
+        user_mem_assert(curenv, (const void*)stabstr, stabstr_end - stabstr, PTE_U);
+
 	}
 
     // String table validity checks
@@ -224,10 +223,10 @@ int debuginfo_eip(uintptr_t addr, struct Eipdebuginfo *info)
     stab_binsearch(stabs, &lfile, &rfile, N_SO, addr);
     if (lfile == 0)
         return -1;
-    cprintf("======FILE=========\n");
-    cprintf("%d - %d %x\n", lfile, rfile, addr);
-    show_stab_info(lfile, rfile, SO | SOL | FUN);
-    cprintf("==================\n");
+    // cprintf("======FILE=========\n");
+    // cprintf("%d - %d %x\n", lfile, rfile, addr);
+    // show_stab_info(lfile, rfile, SO | SOL | FUN);
+    // cprintf("==================\n");
     // Search within that file's stabs for the function definition
     // (N_FUN).
     lfun = lfile;
@@ -236,10 +235,10 @@ int debuginfo_eip(uintptr_t addr, struct Eipdebuginfo *info)
 
     if (lfun <= rfun)
     {
-        cprintf("======FUN=========\n");
-        cprintf("%d - %d %x\n", lfun, rfun, addr);
-        show_stab_info(lfun, rfun, FUN);
-        cprintf("==================\n");
+        // cprintf("======FUN=========\n");
+        // cprintf("%d - %d %x\n", lfun, rfun, addr);
+        // show_stab_info(lfun, rfun, FUN);
+        // cprintf("==================\n");
         // stabs[lfun] points to the function name
         // in the string table, but check bounds just in case.
         if (stabs[lfun].n_strx < stabstr_end - stabstr)
@@ -271,10 +270,10 @@ int debuginfo_eip(uintptr_t addr, struct Eipdebuginfo *info)
     //	which one.
     // Your code here.
     stab_binsearch(stabs, &lline, &rline, N_SLINE, addr);
-    cprintf("======LINE=========\n");
-    cprintf("%d - %d %x\n", lline, rline, addr);
-    show_stab_info(lline, rline, FUN | SLINE);
-    cprintf("==================\n");
+    // cprintf("======LINE=========\n");
+    // cprintf("%d - %d %x\n", lline, rline, addr);
+    // show_stab_info(lline, rline, FUN | SLINE);
+    // cprintf("==================\n");
     if (lline > rline)
         return -1;
     info->eip_line = lline;

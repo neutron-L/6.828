@@ -21,24 +21,10 @@ sys_cputs(const char *s, size_t len)
     // Destroy the environment if not.
 
     // LAB 3: Your code here.
-    uintptr_t sva = (uintptr_t)s;
-    uintptr_t dva = sva + len;
-    pte_t * pte;
-
-    for (uintptr_t va = ROUNDDOWN(sva, PGSIZE); va < ROUNDUP(dva, PGSIZE); va += PGSIZE)
-    {
-        pte = pgdir_walk(curenv->env_pgdir, (const void*)va, 0);
-        cprintf("pte %x %x\n", pte, *pte);
-
-        if (!pte || (*pte & (PTE_U | PTE_P)) != (PTE_U | PTE_P))
-        {
-            cprintf("what ??\n");
-            env_destroy(curenv);
-        }
-    }
+    user_mem_assert(curenv, s, len, PTE_U);
 
     // Print the string supplied by the user.
-    cprintf("%.*s", len, s);        
+    cprintf("%.*s", len, s);
 }
 
 // Read a character from the system console without blocking.
@@ -89,10 +75,16 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 
     switch (syscallno)
     {
-    case SYS_cputs: sys_cputs((const char *)a1, a2); return a2;
-    case SYS_cgetc: return sys_cgetc(); 
-    case SYS_getenvid: return sys_getenvid();
-    case SYS_env_destroy: sys_env_destroy(a1); return 0;
+    case SYS_cputs:
+        sys_cputs((const char *)a1, a2);
+        return a2;
+    case SYS_cgetc:
+        return sys_cgetc();
+    case SYS_getenvid:
+        return sys_getenvid();
+    case SYS_env_destroy:
+        sys_env_destroy(a1);
+        return 0;
     default:
         return -E_INVAL;
     }

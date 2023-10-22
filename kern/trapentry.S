@@ -145,6 +145,7 @@ trap_table:
 /*
  * Lab 3: Your code here for _alltraps
  */
+.text
 _alltraps:
     pushl %ds
     pushl %es
@@ -154,3 +155,4 @@ _alltraps:
     movw %ax, %es
     pushl %esp
     call trap
+    nop

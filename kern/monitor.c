@@ -204,6 +204,8 @@ int mon_dump_vpages(int argc, char **argv, struct Trapframe *tf)
 int mon_single_stepping(int argc, char **argv, struct Trapframe *tf)
 {
     cprintf("ip: %x\n", tf->tf_eip);
+    /* 设置TF位 */
+    tf->tf_eflags |= 0x100;
     env_pop_tf(tf);
     return 0;
 }
@@ -262,13 +264,14 @@ void monitor(struct Trapframe *tf)
     cprintf("Welcome to the JOS kernel monitor!\n");
     cprintf("Type 'help' for a list of commands.\n");
 
-	if (tf != NULL)
-		print_trapframe(tf);
+    if (tf != NULL)
+        print_trapframe(tf);
 
-	while (1) {
-		buf = readline("K> ");
-		if (buf != NULL)
-			if (runcmd(buf, tf) < 0)
-				break;
-	}
+    while (1)
+    {
+        buf = readline("K> ");
+        if (buf != NULL)
+            if (runcmd(buf, tf) < 0)
+                break;
+    }
 }

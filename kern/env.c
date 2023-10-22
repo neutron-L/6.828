@@ -186,13 +186,12 @@ env_setup_vm(struct Env *e)
     ++p->pp_ref;
     e->env_pgdir = (pde_t *)page2kva(p);
     physaddr_t pa;
-    
+
     for (uint32_t pdeno = PDX(UTOP); pdeno < 1024; pdeno++)
     {
         // only look at mapped page tables
         if (!(kern_pgdir[pdeno] & PTE_P) || pdeno == PDX(UVPT))
             continue;
-
         e->env_pgdir[pdeno] = kern_pgdir[pdeno];
         pa = PTE_ADDR(kern_pgdir[pdeno]);
         ++(pa2page(pa))->pp_ref;
@@ -369,21 +368,24 @@ load_icode(struct Env *e, uint8_t *binary)
         // alloc a region for e
         region_alloc(e, (void *)ph->p_va, ph->p_memsz);
 
-        uintptr_t end_va = ph->p_va + ph->p_memsz;
-        uintptr_t data_end_va = ph->p_va + ph->p_filesz;
-        for (uintptr_t va = ph->p_va; va < data_end_va; va = ROUNDDOWN(va + PGSIZE, PGSIZE))
-        {
-            physaddr_t pa = va2pa(e->env_pgdir, va) | (va & 0x3FF);
-            uint32_t len = MIN(ROUNDDOWN(va + PGSIZE, PGSIZE), data_end_va) - va;
-            memcpy(KADDR(pa), binary + ph->p_offset + (va - ph->p_va), len);
-        }
+        // uintptr_t end_va = ph->p_va + ph->p_memsz;
+        // uintptr_t data_end_va = ph->p_va + ph->p_filesz;
+        // for (uintptr_t va = ph->p_va; va < data_end_va; va = ROUNDDOWN(va + PGSIZE, PGSIZE))
+        // {
+        //     physaddr_t pa = va2pa(e->env_pgdir, va) | (va & 0x3FF);
+        //     uint32_t len = MIN(ROUNDDOWN(va + PGSIZE, PGSIZE), data_end_va) - va;
+        //     memcpy(KADDR(pa), binary + ph->p_offset + (va - ph->p_va), len);
+        // }
 
-        for (uintptr_t va = data_end_va; va < end_va; va = ROUNDDOWN(va + PGSIZE, PGSIZE))
-        {
-            physaddr_t pa = va2pa(e->env_pgdir, va) | (va & 0x3FF);
-            uint32_t len = MIN(ROUNDDOWN(va + PGSIZE, PGSIZE), end_va) - va;
-            memset(KADDR(pa), 0, len);
-        }
+        // for (uintptr_t va = data_end_va; va < end_va; va = ROUNDDOWN(va + PGSIZE, PGSIZE))
+        // {
+        //     physaddr_t pa = va2pa(e->env_pgdir, va) | (va & 0x3FF);
+        //     uint32_t len = MIN(ROUNDDOWN(va + PGSIZE, PGSIZE), end_va) - va;
+        //     memset(KADDR(pa), 0, len);
+        // }
+        lcr3(PADDR(e->env_pgdir));
+        memcpy((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
+        memset((void *)(ph->p_va + ph->p_filesz), 0, ph->p_memsz - ph->p_filesz);
     }
     // set start entry
     e->env_tf.tf_eip = elfhdr->e_entry;
@@ -393,8 +395,8 @@ load_icode(struct Env *e, uint8_t *binary)
 
     // LAB 3: Your code here.
     region_alloc(e, (void *)(USTACKTOP - PGSIZE), PGSIZE);
-    pte_t * pte = pgdir_walk(e->env_pgdir, (void *)(USTACKTOP - PGSIZE), 0);
-    cprintf("stack pte %x %x\n", pte, *pte);
+    
+    lcr3(PADDR(kern_pgdir));
 }
 
 //

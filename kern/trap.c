@@ -89,7 +89,7 @@ void trap_init(void)
 
     SETGATE(idt[T_GPFLT], 1, GD_KT, trap_table[T_GPFLT], 0);
     SETGATE(idt[T_PGFLT], 1, GD_KT, trap_table[T_PGFLT], 0);
-    
+
     SETGATE(idt[T_SYSCALL], 0, GD_KT, trap_table[T_SYSCALL], 3);
     // Per-CPU setup
     trap_init_percpu();
@@ -178,11 +178,12 @@ trap_dispatch(struct Trapframe *tf)
             "\tpopf\n"
             :::"memory"
         );
-        tf->tf_eflags |= 0x100;
+        tf->tf_eflags &= ~0x100;
         monitor(tf);
         return;
     case T_PGFLT:
         /* code */
+        cprintf("Page fault\n");
         page_fault_handler(tf);
         return;
     case T_SYSCALL:
@@ -249,6 +250,8 @@ void page_fault_handler(struct Trapframe *tf)
     fault_va = rcr2();
 
     // Handle kernel-mode page faults.
+    if ((tf->tf_cs & 3) == 0)
+        panic("page_fault_handler: kernel page fault\n");
 
     // LAB 3: Your code here.
 

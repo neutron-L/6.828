@@ -201,19 +201,19 @@ void mem_init(void)
     // Your code goes here:
     boot_map_region(kern_pgdir, KSTACKTOP - KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W);
 
-    //////////////////////////////////////////////////////////////////////
-    // Map all of physical memory at KERNBASE.
-    // Ie.  the VA range [KERNBASE, 2^32) should map to
-    //      the PA range [0, 2^32 - KERNBASE)
-    // We might not have 2^32 - KERNBASE bytes of physical memory, but
-    // we just set up the mapping anyway.
-    // Permissions: kernel RW, user NONE
-    // Your code goes here:
-    #ifdef HUGEPAGE
-        boot_map_region(kern_pgdir, KERNBASE, 1 << 28, 0, PTE_PS | PTE_W);
-    #else
-        boot_map_region(kern_pgdir, KERNBASE, 1 << 28, 0, PTE_W);
-    #endif
+//////////////////////////////////////////////////////////////////////
+// Map all of physical memory at KERNBASE.
+// Ie.  the VA range [KERNBASE, 2^32) should map to
+//      the PA range [0, 2^32 - KERNBASE)
+// We might not have 2^32 - KERNBASE bytes of physical memory, but
+// we just set up the mapping anyway.
+// Permissions: kernel RW, user NONE
+// Your code goes here:
+#ifdef HUGEPAGE
+    boot_map_region(kern_pgdir, KERNBASE, 1 << 28, 0, PTE_PS | PTE_W);
+#else
+    boot_map_region(kern_pgdir, KERNBASE, 1 << 28, 0, PTE_W);
+#endif
 
     // Check that the initial page directory has been set up correctly.
     check_kern_pgdir();
@@ -399,7 +399,7 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 //
 // using pgdir to translate va
 //
-physaddr_t 
+physaddr_t
 va2pa(pde_t *pgdir, uintptr_t va)
 {
     pgdir = &pgdir[PDX(va)];
@@ -430,12 +430,13 @@ static void
 boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm)
 {
     // Fill this function in
+    pde_t *pde;
     while (size)
     {
 #ifdef HUGEPAGE
         if (perm & PTE_PS)
         {
-            pde_t *pde = &pgdir[PDX(va)];
+            pde = &pgdir[PDX(va)];
             *pde = pa | perm | PTE_P;
             assert(size >= (1 << 22));
             va += 1 << 22;
@@ -448,6 +449,8 @@ boot_map_region(pde_t *pgdir, uintptr_t va, size_t size, physaddr_t pa, int perm
             pte_t *pte = pgdir_walk(pgdir, (const void *)va, 1);
             if (!pte)
                 panic("boot_map_region: no free memory\n");
+            pde = &pgdir[PDX(va)];
+            *pde |= perm;
             *pte = pa | perm | PTE_P;
             va += PGSIZE;
             pa += PGSIZE;
@@ -706,8 +709,25 @@ static uintptr_t user_mem_check_addr;
 int user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
     // LAB 3: Your code here.
+    uintptr_t sva = (uintptr_t)va;
+    uintptr_t dva = sva + len;
+    pte_t *pte;
+
+    uintptr_t addr;
+    for (addr = ROUNDDOWN(sva, PGSIZE); addr < ROUNDUP(dva, PGSIZE); addr += PGSIZE)
+    {
+        if (addr >= ULIM)
+            goto bad;
+        pte = pgdir_walk(curenv->env_pgdir, (const void *)addr, 0);
+
+        if (!pte || (*pte & perm) != perm)
+            goto bad;
+    }
 
     return 0;
+bad:
+    user_mem_check_addr = MAX(addr, sva);
+    return -E_FAULT;
 }
 
 //
