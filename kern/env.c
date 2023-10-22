@@ -371,14 +371,18 @@ load_icode(struct Env *e, uint8_t *binary)
 
         uintptr_t end_va = ph->p_va + ph->p_memsz;
         uintptr_t data_end_va = ph->p_va + ph->p_filesz;
-        for (uintptr_t va = ph->p_va; va < end_va; va = ROUNDDOWN(va + PGSIZE, PGSIZE))
+        for (uintptr_t va = ph->p_va; va < data_end_va; va = ROUNDDOWN(va + PGSIZE, PGSIZE))
+        {
+            physaddr_t pa = va2pa(e->env_pgdir, va) | (va & 0x3FF);
+            uint32_t len = MIN(ROUNDDOWN(va + PGSIZE, PGSIZE), data_end_va) - va;
+            memcpy(KADDR(pa), binary + ph->p_offset + (va - ph->p_va), len);
+        }
+
+        for (uintptr_t va = data_end_va; va < end_va; va = ROUNDDOWN(va + PGSIZE, PGSIZE))
         {
             physaddr_t pa = va2pa(e->env_pgdir, va) | (va & 0x3FF);
             uint32_t len = MIN(ROUNDDOWN(va + PGSIZE, PGSIZE), end_va) - va;
-            if (va < data_end_va)
-                memcpy(KADDR(pa), binary + ph->p_offset + (va - ph->p_va), len);
-            else
-                memset(KADDR(pa), 0, len);
+            memset(KADDR(pa), 0, len);
         }
     }
     // set start entry
@@ -389,6 +393,8 @@ load_icode(struct Env *e, uint8_t *binary)
 
     // LAB 3: Your code here.
     region_alloc(e, (void *)(USTACKTOP - PGSIZE), PGSIZE);
+    pte_t * pte = pgdir_walk(e->env_pgdir, (void *)(USTACKTOP - PGSIZE), 0);
+    cprintf("stack pte %x %x\n", pte, *pte);
 }
 
 //
