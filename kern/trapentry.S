@@ -59,18 +59,47 @@ TRAPHANDLER_NOEC(HANDLER(illegal), T_ILLOP)
 TRAPHANDLER_NOEC(HANDLER(device), T_DEVICE)
 
 TRAPHANDLER(HANDLER(dbfault), T_DBLFLT)
+
 TRAPHANDLER(HANDLER(tss), T_TSS)
 TRAPHANDLER(HANDLER(segment), T_SEGNP)
-TRAPHANDLER(HANDLER(stack), T_STACK)
 
+TRAPHANDLER(HANDLER(stack), T_STACK)
 TRAPHANDLER(HANDLER(gpflt), T_GPFLT)
+
+
 TRAPHANDLER(HANDLER(fperr), T_FPERR)
 TRAPHANDLER(HANDLER(align), T_ALIGN)
-
-
 TRAPHANDLER_NOEC(HANDLER(mchk), T_MCHK)
 TRAPHANDLER_NOEC(HANDLER(smiderr), T_SIMDERR)
 
+.data
+    .align 4
+    .global trap_table
+trap_table:
+    .long HANDLER(divide)
+    .long HANDLER(debug)
+    .long HANDLER(nmi)
+    .long HANDLER(breakpoint)
+
+    .long HANDLER(overflow)
+    .long HANDLER(bound)
+    .long HANDLER(illegal)
+    .long HANDLER(device)
+
+    .long HANDLER(dbfault)
+    .long 0
+    .long HANDLER(tss)
+    .long HANDLER(segment)
+    
+    .long HANDLER(stack)
+    .long HANDLER(gpflt)
+    .long HANDLER(page_fault)
+    .long 0
+
+    .long HANDLER(fperr)
+    .long HANDLER(align)
+    .long HANDLER(mchk)
+    .long HANDLER(smiderr)
 
 
 /*
