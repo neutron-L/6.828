@@ -25,36 +25,33 @@ static struct Trapframe *last_tf;
 /* Interrupt descriptor table.  (Must be built at run time because
  * shifted function addresses can't be represented in relocation records.)
  */
-struct Gatedesc idt[256] = { { 0 } };
+struct Gatedesc idt[256] = {{0}};
 struct Pseudodesc idt_pd = {
-	sizeof(idt) - 1, (uint32_t) idt
-};
-
+    sizeof(idt) - 1, (uint32_t)idt};
 
 static const char *trapname(int trapno)
 {
-	static const char * const excnames[] = {
-		"Divide error",
-		"Debug",
-		"Non-Maskable Interrupt",
-		"Breakpoint",
-		"Overflow",
-		"BOUND Range Exceeded",
-		"Invalid Opcode",
-		"Device Not Available",
-		"Double Fault",
-		"Coprocessor Segment Overrun",
-		"Invalid TSS",
-		"Segment Not Present",
-		"Stack Fault",
-		"General Protection",
-		"Page Fault",
-		"(unknown trap)",
-		"x87 FPU Floating-Point Error",
-		"Alignment Check",
-		"Machine-Check",
-		"SIMD Floating-Point Exception"
-	};
+    static const char *const excnames[] = {
+        "Divide error",
+        "Debug",
+        "Non-Maskable Interrupt",
+        "Breakpoint",
+        "Overflow",
+        "BOUND Range Exceeded",
+        "Invalid Opcode",
+        "Device Not Available",
+        "Double Fault",
+        "Coprocessor Segment Overrun",
+        "Invalid TSS",
+        "Segment Not Present",
+        "Stack Fault",
+        "General Protection",
+        "Page Fault",
+        "(unknown trap)",
+        "x87 FPU Floating-Point Error",
+        "Alignment Check",
+        "Machine-Check",
+        "SIMD Floating-Point Exception"};
 
 	if (trapno < ARRAY_SIZE(excnames))
 		return excnames[trapno];
@@ -65,21 +62,47 @@ static const char *trapname(int trapno)
 	return "(unknown trap)";
 }
 
+// extern void divide_handler();
+// extern void debug_handler();
+// extern void nmi_handler();
+// extern void breakpoint_handler();
 
-void
-trap_init(void)
+// extern void overflow_handler();
+// extern void bound_handler();
+// extern void illegal_handler();
+// extern void device_handler();
+
+// extern void dbfault_handler();
+// extern void tss_handler();
+// extern void segment_handler();
+// extern void stack_handler();
+
+// extern void gpflt_handler();
+// extern void fperr_handler();
+// extern void align_handler();
+
+// extern void mchk_handler();
+// extern void smiderr_handler();
+extern long trap_table[];
+void trap_init(void)
 {
-	extern struct Segdesc gdt[];
+    extern struct Segdesc gdt[];
 
-	// LAB 3: Your code here.
+    // LAB 3: Your code here.
+    SETGATE(idt[T_DIVIDE], 0, GD_KT, trap_table[T_DIVIDE], 0);
+    SETGATE(idt[T_DEBUG], 0, GD_KT, trap_table[T_DEBUG], 0);
+    SETGATE(idt[T_BRKPT], 0, GD_KT, trap_table[T_BRKPT], 3);
 
-	// Per-CPU setup 
-	trap_init_percpu();
+    SETGATE(idt[T_GPFLT], 1, GD_KT, trap_table[T_GPFLT], 0);
+    SETGATE(idt[T_PGFLT], 1, GD_KT, trap_table[T_PGFLT], 0);
+
+    SETGATE(idt[T_SYSCALL], 0, GD_KT, trap_table[T_SYSCALL], 3);
+    // Per-CPU setup
+    trap_init_percpu();
 }
 
 // Initialize and load the per-CPU TSS and IDT
-void
-trap_init_percpu(void)
+void trap_init_percpu(void)
 {
 	// The example code here sets up the Task State Segment (TSS) and
 	// the TSS descriptor for CPU 0. But it is incorrect if we are
@@ -112,21 +135,20 @@ trap_init_percpu(void)
 	ts.ts_ss0 = GD_KD;
 	ts.ts_iomb = sizeof(struct Taskstate);
 
-	// Initialize the TSS slot of the gdt.
-	gdt[GD_TSS0 >> 3] = SEG16(STS_T32A, (uint32_t) (&ts),
-					sizeof(struct Taskstate) - 1, 0);
-	gdt[GD_TSS0 >> 3].sd_s = 0;
+    // Initialize the TSS slot of the gdt.
+    gdt[GD_TSS0 >> 3] = SEG16(STS_T32A, (uint32_t)(&ts),
+                              sizeof(struct Taskstate) - 1, 0);
+    gdt[GD_TSS0 >> 3].sd_s = 0;
 
-	// Load the TSS selector (like other segment selectors, the
-	// bottom three bits are special; we leave them 0)
-	ltr(GD_TSS0);
+    // Load the TSS selector (like other segment selectors, the
+    // bottom three bits are special; we leave them 0)
+    ltr(GD_TSS0);
 
-	// Load the IDT
-	lidt(&idt_pd);
+    // Load the IDT
+    lidt(&idt_pd);
 }
 
-void
-print_trapframe(struct Trapframe *tf)
+void print_trapframe(struct Trapframe *tf)
 {
 	cprintf("TRAP frame at %p from CPU %d\n", tf, cpunum());
 	print_regs(&tf->tf_regs);
@@ -158,24 +180,48 @@ print_trapframe(struct Trapframe *tf)
 	}
 }
 
-void
-print_regs(struct PushRegs *regs)
+void print_regs(struct PushRegs *regs)
 {
-	cprintf("  edi  0x%08x\n", regs->reg_edi);
-	cprintf("  esi  0x%08x\n", regs->reg_esi);
-	cprintf("  ebp  0x%08x\n", regs->reg_ebp);
-	cprintf("  oesp 0x%08x\n", regs->reg_oesp);
-	cprintf("  ebx  0x%08x\n", regs->reg_ebx);
-	cprintf("  edx  0x%08x\n", regs->reg_edx);
-	cprintf("  ecx  0x%08x\n", regs->reg_ecx);
-	cprintf("  eax  0x%08x\n", regs->reg_eax);
+    cprintf("  edi  0x%08x\n", regs->reg_edi);
+    cprintf("  esi  0x%08x\n", regs->reg_esi);
+    cprintf("  ebp  0x%08x\n", regs->reg_ebp);
+    cprintf("  oesp 0x%08x\n", regs->reg_oesp);
+    cprintf("  ebx  0x%08x\n", regs->reg_ebx);
+    cprintf("  edx  0x%08x\n", regs->reg_edx);
+    cprintf("  ecx  0x%08x\n", regs->reg_ecx);
+    cprintf("  eax  0x%08x\n", regs->reg_eax);
 }
 
 static void
 trap_dispatch(struct Trapframe *tf)
 {
-	// Handle processor exceptions.
-	// LAB 3: Your code here.
+    // Handle processor exceptions.
+    // LAB 3: Your code here.
+    switch (tf->tf_trapno)
+    {
+    case T_DEBUG: // 单步调试
+    case T_BRKPT:
+        /* 设置TF位 */
+        asm volatile(
+            "\tpushf\n"
+            "\tandl $0xFFFFFEFF, (%%esp)\n"
+            "\tpopf\n"
+            :::"memory"
+        );
+        tf->tf_eflags &= ~0x100;
+        monitor(tf);
+        return;
+    case T_PGFLT:
+        /* code */
+        cprintf("Page fault\n");
+        page_fault_handler(tf);
+        return;
+    case T_SYSCALL:
+        do_syscall(tf);
+        return;
+    default:
+        break;
+    }
 
 	// Handle spurious interrupts
 	// The hardware sometimes raises these because of noise on the
@@ -200,12 +246,11 @@ trap_dispatch(struct Trapframe *tf)
 	}
 }
 
-void
-trap(struct Trapframe *tf)
+void trap(struct Trapframe *tf)
 {
-	// The environment may have set DF and some versions
-	// of GCC rely on DF being clear
-	asm volatile("cld" ::: "cc");
+    // The environment may have set DF and some versions
+    // of GCC rely on DF being clear
+    asm volatile("cld" ::: "cc");
 
 	// Halt the CPU if some other CPU has called panic()
 	extern char *panicstr;
@@ -243,12 +288,12 @@ trap(struct Trapframe *tf)
 		tf = &curenv->env_tf;
 	}
 
-	// Record that tf is the last real trapframe so
-	// print_trapframe can print some additional information.
-	last_tf = tf;
+    // Record that tf is the last real trapframe so
+    // print_trapframe can print some additional information.
+    last_tf = tf;
 
-	// Dispatch based on what type of trap occurred
-	trap_dispatch(tf);
+    // Dispatch based on what type of trap occurred
+    trap_dispatch(tf);
 
 	// If we made it to this point, then no other environment was
 	// scheduled, so we should return to the current environment
@@ -259,21 +304,21 @@ trap(struct Trapframe *tf)
 		sched_yield();
 }
 
-
-void
-page_fault_handler(struct Trapframe *tf)
+void page_fault_handler(struct Trapframe *tf)
 {
-	uint32_t fault_va;
+    uint32_t fault_va;
 
-	// Read processor's CR2 register to find the faulting address
-	fault_va = rcr2();
+    // Read processor's CR2 register to find the faulting address
+    fault_va = rcr2();
 
-	// Handle kernel-mode page faults.
+    // Handle kernel-mode page faults.
+    if ((tf->tf_cs & 3) == 0)
+        panic("page_fault_handler: kernel page fault\n");
 
-	// LAB 3: Your code here.
+    // LAB 3: Your code here.
 
-	// We've already handled kernel-mode exceptions, so if we get here,
-	// the page fault happened in user mode.
+    // We've already handled kernel-mode exceptions, so if we get here,
+    // the page fault happened in user mode.
 
 	// Call the environment's page fault upcall, if one exists.  Set up a
 	// page fault stack frame on the user exception stack (below
@@ -313,3 +358,8 @@ page_fault_handler(struct Trapframe *tf)
 	env_destroy(curenv);
 }
 
+void do_syscall(struct Trapframe *tf)
+{
+    tf->tf_regs.reg_eax = syscall(tf->tf_regs.reg_eax, tf->tf_regs.reg_edx, tf->tf_regs.reg_ecx, 
+        tf->tf_regs.reg_ebx, tf->tf_regs.reg_edi, tf->tf_regs.reg_esi);
+}
