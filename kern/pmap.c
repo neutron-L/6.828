@@ -314,7 +314,7 @@ void page_init(void)
     size_t i;
     for (i = 0; i < npages; i++)
     {
-        if (i != 0 && !(i >= PGNUM(IOPHYSMEM) && i < PGNUM(PADDR(last))))
+        if (i != 0 && !(i >= PGNUM(IOPHYSMEM) && i < PGNUM(PADDR(last))) && i != PGNUM(MPENTRY_PADDR ))
         {
             pages[i].pp_ref = 0;
             pages[i].pp_link = page_free_list;
