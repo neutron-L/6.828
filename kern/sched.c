@@ -10,8 +10,8 @@ void sched_halt(void);
 // Choose a user environment to run and run it.
 void sched_yield(void)
 {
-    struct Env *idle = NULL;
-    static int prev_envid = -1;
+    // struct Env *idle = curenv;
+    int next_id = curenv ? ENVX(curenv->env_id) : -1;
 
     // Implement simple round-robin scheduling.
     //
@@ -29,36 +29,16 @@ void sched_yield(void)
     // below to halt the cpu.
 
     // LAB 4: Your code here.
-    int next, num;
-    if (curenv)
-    {
-        next = ENVX(curenv->env_id) + 1;
-        num = NENV - 1; // to check
-    }
-    else
-    {
-        next = 0;
-        num = NENV;
-    }
-    next %= NENV;
-    int i;
-    for (i = 0; i < num && envs[next].env_status != ENV_RUNNABLE; ++i)
-        next = (next + 1) % NENV;
+    for (int i = next_id + 1; i < NENV; ++i)
+        if (envs[i].env_status == ENV_RUNNABLE)
+            env_run(&envs[i]);
 
-    if (i != num) // find a runnable env
-    {
-        assert(envs[next].env_status == ENV_RUNNABLE);
-        idle = &envs[next];
-    }
-    else if (curenv && curenv->env_status == ENV_RUNNING)
-        idle = curenv;
+    for (int i = 0; i < next_id; ++i)
+        if (envs[i].env_status == ENV_RUNNABLE)
+            env_run(&envs[i]);
 
-    if (idle)
-    {
-        cprintf("%d run %x \n", cpunum(),idle->env_id);
-        env_run(idle);
-    }
-    cprintf("None idle\n");
+    if (curenv && curenv->env_status == ENV_RUNNING)
+        env_run(curenv);
     // sched_halt never returns
     sched_halt();
 }
