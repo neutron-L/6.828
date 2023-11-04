@@ -201,7 +201,7 @@ void mem_init(void)
     //       overwrite memory.  Known as a "guard page".
     //     Permissions: kernel RW, user NONE
     // Your code goes here:
-    boot_map_region(kern_pgdir, KSTACKTOP - KSTKSIZE, KSTKSIZE, PADDR(percpu_kstacks[0]), PTE_W);
+    // boot_map_region(kern_pgdir, KSTACKTOP - KSTKSIZE, KSTKSIZE, PADDR(percpu_kstacks[0]), PTE_W);
 
     //////////////////////////////////////////////////////////////////////
     // Map all of physical memory at KERNBASE.
@@ -217,8 +217,8 @@ void mem_init(void)
     boot_map_region(kern_pgdir, KERNBASE, 1 << 28, 0, PTE_W);
 #endif
 
-    // Check that the initial page directory has been set up correctly.
-    check_kern_pgdir();
+     // Initialize the SMP-related parts of the memory map
+    mem_init_mp();
 
 #ifdef HUGEPAGE
     uint32_t cr4 = rcr4();
@@ -227,8 +227,7 @@ void mem_init(void)
     tlb_invalidate(kern_pgdir, (void *)KERNBASE); // 不需要这个也可以通过修改后的测试
 #endif
 
-    // Initialize the SMP-related parts of the memory map
-    mem_init_mp();
+   
 
     // Check that the initial page directory has been set up correctly.
     check_kern_pgdir();
@@ -277,9 +276,9 @@ mem_init_mp(void)
     //
     // LAB 4: Your code here:
     uintptr_t kstacktop_i;
-    for (int i = 1; i < NCPU; ++i)
+    for (int i = 0; i < NCPU; ++i)
     {
-        kstacktop_i =  KSTACKTOP - i * (KSTKSIZE + KSTKGAP);
+        kstacktop_i = KSTACKTOP - i * (KSTKSIZE + KSTKGAP);
         boot_map_region(kern_pgdir, kstacktop_i - KSTKSIZE, KSTKSIZE, PADDR(percpu_kstacks[i]), PTE_W);
     }
 }
@@ -320,7 +319,7 @@ void page_init(void)
     size_t i;
     for (i = 0; i < npages; i++)
     {
-        if (i != 0 && !(i >= PGNUM(IOPHYSMEM) && i < PGNUM(PADDR(last))) && i != PGNUM(MPENTRY_PADDR ))
+        if (i != 0 && !(i >= PGNUM(IOPHYSMEM) && i < PGNUM(PADDR(last))) && i != PGNUM(MPENTRY_PADDR))
         {
             pages[i].pp_ref = 0;
             pages[i].pp_link = page_free_list;
@@ -758,8 +757,8 @@ mmio_map_region(physaddr_t pa, size_t size)
     size = ROUNDUP(size, PGSIZE);
     if (base + size >= MMIOLIM)
         panic("mmio_map_region: no free virtual space between base and MMIOLIM");
-    boot_map_region(kern_pgdir, base, size, pa, PTE_PCD | PTE_PWT);
-    void * ret = (void *)base;
+    boot_map_region(kern_pgdir, base, size, pa, PTE_PCD | PTE_PWT | PTE_W);
+    void *ret = (void *)base;
     base += size;
     // Flush the entry only if we're modifying the current address space.
     // For now, there is only one address space, so always invalidate.
@@ -1004,10 +1003,9 @@ check_kern_pgdir(void)
     for (i = 0; i < n; i += PGSIZE)
         assert(check_va2pa(pgdir, UENVS + i) == PADDR(envs) + i);
 
-    // check kernel stack
-    for (i = 0; i < KSTKSIZE; i += PGSIZE)
-        assert(check_va2pa(pgdir, KSTACKTOP - KSTKSIZE + i) == PADDR(bootstack) + i);
-    assert(check_va2pa(pgdir, KSTACKTOP - PTSIZE) == ~0);
+    // check phys mem
+    for (i = 0; i < npages * PGSIZE; i += PGSIZE)
+        assert(check_va2pa(pgdir, KERNBASE + i) == i);
 
     // check kernel stack
     // (updated in lab 4 to check per-CPU kernel stacks)
@@ -1054,14 +1052,12 @@ check_kern_pgdir(void)
 static physaddr_t
 check_va2pa(pde_t *pgdir, uintptr_t va)
 {
+    pte_t *p;
+
     pgdir = &pgdir[PDX(va)];
     if (!(*pgdir & PTE_P))
         return ~0;
-#ifdef HUGEPAGE
-    if ((*pgdir) & PTE_PS)
-        return PTE_ADDR(*pgdir);
-#endif
-    pte_t *p = (pte_t *)KADDR(PTE_ADDR(*pgdir));
+    p = (pte_t *)KADDR(PTE_ADDR(*pgdir));
     if (!(p[PTX(va)] & PTE_P))
         return ~0;
     return PTE_ADDR(p[PTX(va)]);
