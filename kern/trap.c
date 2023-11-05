@@ -191,7 +191,7 @@ trap_dispatch(struct Trapframe *tf)
         return;
     case T_PGFLT:
         /* code */
-        cprintf("Page fault\n");
+        // cprintf("Page fault\n");
         page_fault_handler(tf);
         return;
     case T_SYSCALL:
@@ -334,9 +334,6 @@ void page_fault_handler(struct Trapframe *tf)
     //   (the 'tf' variable points at 'curenv->env_tf').
 
     // LAB 4: Your code here.
-    cprintf("[%08x] user fault va %08x ip %08x\n",
-            curenv->env_id, fault_va, tf->tf_eip);
-
     if (!curenv->env_pgfault_upcall)
         goto bad;
 
@@ -344,13 +341,16 @@ void page_fault_handler(struct Trapframe *tf)
     if (!pte || !((*pte) & PTE_W) || !((*pte) & PTE_U))
         goto bad;
 
-    struct UTrapframe * utf;
+    struct UTrapframe *utf;
     // check whether the remaining space in exception stack is enough
-    if (curenv->env_tf.tf_esp >= UXSTACKTOP-PGSIZE && UXSTACKTOP-PGSIZE < UXSTACKTOP)
-        utf = (struct UTrapframe *)((char *)curenv->env_tf.tf_esp - 4 - sizeof(struct UTrapFrame));
+    if (curenv->env_tf.tf_esp >= UXSTACKTOP - PGSIZE && UXSTACKTOP - PGSIZE < UXSTACKTOP)
+    {
+        *(uint32_t *)(tf->tf_esp - 4) = 0;
+        utf = (struct UTrapframe *)((char *)curenv->env_tf.tf_esp - 4 - sizeof(struct UTrapframe));
+    }
     else
-        utf = (struct UTrapframe *)UXSTACKTOP - sizeof(struct UTrapframe);
-    user_mem_check(curenv, utf, sizeof(struct UTrapFrame), PTE_U | PTE_W);
+        utf = (struct UTrapframe *)((char *)(UXSTACKTOP - sizeof(struct UTrapframe)));
+    user_mem_check(curenv, utf, sizeof(struct UTrapframe), PTE_U | PTE_W);
 
     utf->utf_esp = curenv->env_tf.tf_esp;
     utf->utf_eflags = curenv->env_tf.tf_eflags;
@@ -363,6 +363,8 @@ void page_fault_handler(struct Trapframe *tf)
     curenv->env_tf.tf_esp = (uint32_t)utf;
     env_run(curenv);
 bad:
+    cprintf("[%08x] user fault va %08x ip %08x\n",
+            curenv->env_id, fault_va, tf->tf_eip);
     // Destroy the environment that caused the fault.
     print_trapframe(tf);
     env_destroy(curenv);
