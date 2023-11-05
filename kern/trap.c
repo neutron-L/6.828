@@ -291,6 +291,7 @@ void trap(struct Trapframe *tf)
 void page_fault_handler(struct Trapframe *tf)
 {
     uint32_t fault_va;
+    int r;
 
     // Read processor's CR2 register to find the faulting address
     fault_va = rcr2();
@@ -337,20 +338,17 @@ void page_fault_handler(struct Trapframe *tf)
     if (!curenv->env_pgfault_upcall)
         goto bad;
 
-    pte_t *pte = pgdir_walk(curenv->env_pgdir, (void *)(UXSTACKTOP - PGSIZE), 0);
-    if (!pte || !((*pte) & PTE_W) || !((*pte) & PTE_U))
-        goto bad;
-
     struct UTrapframe *utf;
     // check whether the remaining space in exception stack is enough
-    if (curenv->env_tf.tf_esp >= UXSTACKTOP - PGSIZE && UXSTACKTOP - PGSIZE < UXSTACKTOP)
+    if (curenv->env_tf.tf_esp >= UXSTACKTOP - PGSIZE && curenv->env_tf.tf_esp < UXSTACKTOP)
     {
         *(uint32_t *)(tf->tf_esp - 4) = 0;
         utf = (struct UTrapframe *)((char *)curenv->env_tf.tf_esp - 4 - sizeof(struct UTrapframe));
     }
     else
         utf = (struct UTrapframe *)((char *)(UXSTACKTOP - sizeof(struct UTrapframe)));
-    user_mem_check(curenv, utf, sizeof(struct UTrapframe), PTE_U | PTE_W);
+    // check whether exception stack has be allocated
+    user_mem_assert(curenv, utf, sizeof(struct UTrapframe), PTE_W | PTE_P);
 
     utf->utf_esp = curenv->env_tf.tf_esp;
     utf->utf_eflags = curenv->env_tf.tf_eflags;
