@@ -62,27 +62,6 @@ static const char *trapname(int trapno)
     return "(unknown trap)";
 }
 
-// extern void divide_handler();
-// extern void debug_handler();
-// extern void nmi_handler();
-// extern void breakpoint_handler();
-
-// extern void overflow_handler();
-// extern void bound_handler();
-// extern void illegal_handler();
-// extern void device_handler();
-
-// extern void dbfault_handler();
-// extern void tss_handler();
-// extern void segment_handler();
-// extern void stack_handler();
-
-// extern void gpflt_handler();
-// extern void fperr_handler();
-// extern void align_handler();
-
-// extern void mchk_handler();
-// extern void smiderr_handler();
 extern long trap_table[];
 void trap_init(void)
 {
@@ -324,13 +303,7 @@ void page_fault_handler(struct Trapframe *tf)
 
     // We've already handled kernel-mode exceptions, so if we get here,
     // the page fault happened in user mode.
-    if (!curenv->env_pgfault_upcall)
-    {
-        cprintf("[%08x] user fault va %08x ip %08x\n",
-                curenv->env_id, fault_va, tf->tf_eip);
-        print_trapframe(tf);
-        env_destroy(curenv);
-    }
+
     // Call the environment's page fault upcall, if one exists.  Set up a
     // page fault stack frame on the user exception stack (below
     // UXSTACKTOP), then branch to curenv->env_pgfault_upcall.
@@ -361,8 +334,38 @@ void page_fault_handler(struct Trapframe *tf)
     //   (the 'tf' variable points at 'curenv->env_tf').
 
     // LAB 4: Your code here.
+    cprintf("[%08x] user fault va %08x ip %08x\n",
+            curenv->env_id, fault_va, tf->tf_eip);
 
+    if (!curenv->env_pgfault_upcall)
+        goto bad;
+
+    pte_t *pte = pgdir_walk(curenv->env_pgdir, (void *)(UXSTACKTOP - PGSIZE), 0);
+    if (!pte || !((*pte) & PTE_W) || !((*pte) & PTE_U))
+        goto bad;
+
+    struct UTrapframe * utf;
+    // check whether the remaining space in exception stack is enough
+    if (curenv->env_tf.tf_esp >= UXSTACKTOP-PGSIZE && UXSTACKTOP-PGSIZE < UXSTACKTOP)
+        utf = (struct UTrapframe *)((char *)curenv->env_tf.tf_esp - 4 - sizeof(struct UTrapFrame));
+    else
+        utf = (struct UTrapframe *)UXSTACKTOP - sizeof(struct UTrapframe);
+    user_mem_check(curenv, utf, sizeof(struct UTrapFrame), PTE_U | PTE_W);
+
+    utf->utf_esp = curenv->env_tf.tf_esp;
+    utf->utf_eflags = curenv->env_tf.tf_eflags;
+    utf->utf_eip = curenv->env_tf.tf_eip;
+    utf->utf_regs = curenv->env_tf.tf_regs;
+    utf->utf_err = tf->tf_err;
+    utf->utf_fault_va = fault_va;
+
+    curenv->env_tf.tf_eip = (uint32_t)curenv->env_pgfault_upcall;
+    curenv->env_tf.tf_esp = (uint32_t)utf;
+    env_run(curenv);
+bad:
     // Destroy the environment that caused the fault.
+    print_trapframe(tf);
+    env_destroy(curenv);
 }
 
 void do_syscall(struct Trapframe *tf)
