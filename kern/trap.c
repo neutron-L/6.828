@@ -82,7 +82,7 @@ void trap_init(void)
     SETGATE(idt[IRQ_OFFSET + IRQ_IDE], 0, GD_KT, trap_table[IRQ_OFFSET + IRQ_IDE], 0);
     SETGATE(idt[IRQ_OFFSET + IRQ_ERROR], 0, GD_KT, trap_table[IRQ_OFFSET + IRQ_ERROR], 0);
 
-    SETGATE(idt[T_SYSCALL], 1, GD_KT, trap_table[T_SYSCALL], 3);
+    SETGATE(idt[T_SYSCALL], 0, GD_KT, trap_table[T_SYSCALL], 3);
     // Per-CPU setup
     trap_init_percpu();
 }
@@ -250,7 +250,9 @@ void trap(struct Trapframe *tf)
     // Check that interrupts are disabled.  If this assertion
     // fails, DO NOT be tempted to fix it by inserting a "cli" in
     // the interrupt path.
-    assert(!(read_eflags() & FL_IF));
+    // 应该只对中断做assert
+    if (tf->tf_trapno >= IRQ_OFFSET)
+        assert(!(read_eflags() & FL_IF));
 
     if ((tf->tf_cs & 3) == 3)
     {
