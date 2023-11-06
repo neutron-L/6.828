@@ -80,6 +80,7 @@ void trap_init(void)
     SETGATE(idt[IRQ_OFFSET + IRQ_SERIAL], 0, GD_KT, trap_table[IRQ_OFFSET + IRQ_SERIAL], 0);
     SETGATE(idt[IRQ_OFFSET + IRQ_SPURIOUS], 0, GD_KT, trap_table[IRQ_OFFSET + IRQ_SPURIOUS], 0);
     SETGATE(idt[IRQ_OFFSET + IRQ_IDE], 0, GD_KT, trap_table[IRQ_OFFSET + IRQ_IDE], 0);
+    SETGATE(idt[IRQ_OFFSET + IRQ_ERROR], 0, GD_KT, trap_table[IRQ_OFFSET + IRQ_ERROR], 0);
 
     SETGATE(idt[T_SYSCALL], 1, GD_KT, trap_table[T_SYSCALL], 3);
     // Per-CPU setup
@@ -187,12 +188,6 @@ trap_dispatch(struct Trapframe *tf)
     {
     case T_DEBUG: // 单步调试
     case T_BRKPT:
-        /* 设置TF位 */
-        // asm volatile(
-        //     "\tpushf\n"
-        //     "\tandl $0xFFFFFEFF, (%%esp)\n"
-        //     "\tpopf\n" ::: "memory");
-        // tf->tf_eflags &= ~0x100;
         monitor(tf);
         return;
     case T_PGFLT:
@@ -220,7 +215,12 @@ trap_dispatch(struct Trapframe *tf)
     // Handle clock interrupts. Don't forget to acknowledge the
     // interrupt using lapic_eoi() before calling the scheduler!
     // LAB 4: Your code here.
-
+    if (tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER)
+    {
+        lapic_eoi();
+        sched_yield();
+        return;
+    }
     // Unexpected trap: The user process or the kernel has a bug.
     print_trapframe(tf);
     if (tf->tf_cs == GD_KT)
