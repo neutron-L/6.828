@@ -11,7 +11,7 @@
 #include <kern/monitor.h>
 #include <kern/kdebug.h>
 #include <kern/trap.h>
-
+#include <kern/spinlock.h>
 #include <kern/pmap.h>
 #include <kern/env.h>
 
@@ -206,6 +206,7 @@ int mon_single_stepping(int argc, char **argv, struct Trapframe *tf)
     cprintf("ip: %x\n", tf->tf_eip);
     /* 设置TF位 */
     tf->tf_eflags |= 0x100;
+    unlock_kernel();
     env_pop_tf(tf);
     return 0;
 }

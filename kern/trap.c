@@ -68,14 +68,20 @@ void trap_init(void)
     extern struct Segdesc gdt[];
 
     // LAB 3: Your code here.
-    SETGATE(idt[T_DIVIDE], 0, GD_KT, trap_table[T_DIVIDE], 0);
-    SETGATE(idt[T_DEBUG], 0, GD_KT, trap_table[T_DEBUG], 0);
-    SETGATE(idt[T_BRKPT], 0, GD_KT, trap_table[T_BRKPT], 3);
+    SETGATE(idt[T_DIVIDE], 1, GD_KT, trap_table[T_DIVIDE], 0);
+    SETGATE(idt[T_DEBUG], 1, GD_KT, trap_table[T_DEBUG], 0);
+    SETGATE(idt[T_BRKPT], 1, GD_KT, trap_table[T_BRKPT], 3);
 
     SETGATE(idt[T_GPFLT], 1, GD_KT, trap_table[T_GPFLT], 0);
     SETGATE(idt[T_PGFLT], 1, GD_KT, trap_table[T_PGFLT], 0);
 
-    SETGATE(idt[T_SYSCALL], 0, GD_KT, trap_table[T_SYSCALL], 3);
+    SETGATE(idt[IRQ_OFFSET + IRQ_TIMER], 0, GD_KT, trap_table[IRQ_OFFSET + IRQ_TIMER], 0);
+    SETGATE(idt[IRQ_OFFSET + IRQ_KBD], 0, GD_KT, trap_table[IRQ_OFFSET + IRQ_KBD], 0);
+    SETGATE(idt[IRQ_OFFSET + IRQ_SERIAL], 0, GD_KT, trap_table[IRQ_OFFSET + IRQ_SERIAL], 0);
+    SETGATE(idt[IRQ_OFFSET + IRQ_SPURIOUS], 0, GD_KT, trap_table[IRQ_OFFSET + IRQ_SPURIOUS], 0);
+    SETGATE(idt[IRQ_OFFSET + IRQ_IDE], 0, GD_KT, trap_table[IRQ_OFFSET + IRQ_IDE], 0);
+
+    SETGATE(idt[T_SYSCALL], 1, GD_KT, trap_table[T_SYSCALL], 3);
     // Per-CPU setup
     trap_init_percpu();
 }
@@ -182,11 +188,11 @@ trap_dispatch(struct Trapframe *tf)
     case T_DEBUG: // 单步调试
     case T_BRKPT:
         /* 设置TF位 */
-        asm volatile(
-            "\tpushf\n"
-            "\tandl $0xFFFFFEFF, (%%esp)\n"
-            "\tpopf\n" ::: "memory");
-        tf->tf_eflags &= ~0x100;
+        // asm volatile(
+        //     "\tpushf\n"
+        //     "\tandl $0xFFFFFEFF, (%%esp)\n"
+        //     "\tpopf\n" ::: "memory");
+        // tf->tf_eflags &= ~0x100;
         monitor(tf);
         return;
     case T_PGFLT:
