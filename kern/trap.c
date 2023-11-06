@@ -68,12 +68,12 @@ void trap_init(void)
     extern struct Segdesc gdt[];
 
     // LAB 3: Your code here.
-    SETGATE(idt[T_DIVIDE], 1, GD_KT, trap_table[T_DIVIDE], 0);
-    SETGATE(idt[T_DEBUG], 1, GD_KT, trap_table[T_DEBUG], 0);
-    SETGATE(idt[T_BRKPT], 1, GD_KT, trap_table[T_BRKPT], 3);
+    SETGATE(idt[T_DIVIDE], 0, GD_KT, trap_table[T_DIVIDE], 0);
+    SETGATE(idt[T_DEBUG], 0, GD_KT, trap_table[T_DEBUG], 0);
+    SETGATE(idt[T_BRKPT], 0, GD_KT, trap_table[T_BRKPT], 3);
 
-    SETGATE(idt[T_GPFLT], 1, GD_KT, trap_table[T_GPFLT], 0);
-    SETGATE(idt[T_PGFLT], 1, GD_KT, trap_table[T_PGFLT], 0);
+    SETGATE(idt[T_GPFLT], 0, GD_KT, trap_table[T_GPFLT], 0);
+    SETGATE(idt[T_PGFLT], 0, GD_KT, trap_table[T_PGFLT], 0);
 
     SETGATE(idt[IRQ_OFFSET + IRQ_TIMER], 0, GD_KT, trap_table[IRQ_OFFSET + IRQ_TIMER], 0);
     SETGATE(idt[IRQ_OFFSET + IRQ_KBD], 0, GD_KT, trap_table[IRQ_OFFSET + IRQ_KBD], 0);
@@ -250,8 +250,10 @@ void trap(struct Trapframe *tf)
     // Check that interrupts are disabled.  If this assertion
     // fails, DO NOT be tempted to fix it by inserting a "cli" in
     // the interrupt path.
-    // 应该只对中断做assert
-    if (tf->tf_trapno >= IRQ_OFFSET)
+    // 应该只对中断做assert 
+    // 但是这样的话primes用例无法通过，会在解锁大内核锁的时候出错
+    // 可能是被时钟中断影响
+    // if (tf->tf_trapno >= IRQ_OFFSET)
         assert(!(read_eflags() & FL_IF));
 
     if ((tf->tf_cs & 3) == 3)
@@ -306,7 +308,9 @@ void page_fault_handler(struct Trapframe *tf)
 
     // Handle kernel-mode page faults.
     if ((tf->tf_cs & 3) == 0)
-        panic("page_fault_handler: kernel page fault\n");
+    {
+        panic("page_fault_handler: kernel page fault at %x %x\n", tf->tf_eip, fault_va);
+    }
 
     // LAB 3: Your code here.
 
