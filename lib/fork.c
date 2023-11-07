@@ -9,7 +9,7 @@
 
 extern void _pgfault_upcall(void);
 extern volatile pte_t uvpt[];
-extern volatile pde_t uvpd[];    
+extern volatile pde_t uvpd[];
 //
 // Custom page fault handler - if faulting page is copy-on-write,
 // map in our own private writable copy.
@@ -33,7 +33,6 @@ pgfault(struct UTrapframe *utf)
         panic("pgfault: not cow fault");
     if (!(uvpt[PGNUM(fault_va)] & PTE_COW))
         panic("pgfault: not cow page");
-    
 
     // Allocate a new page, map it at a temporary location (PFTEMP),
     // copy the data from the old page to the new page, then move the new
@@ -118,7 +117,8 @@ fork(void)
     {
         uint32_t addr = i << PGSHIFT;
         if (uvpd[PDX(addr)] & PTE_P && uvpt[i] & PTE_P)
-            duppage(envid, i);
+            if ((r = duppage(envid, i)))
+                return r;
     }
 
     if ((r = sys_page_alloc(envid, (void *)(UXSTACKTOP - PGSIZE), PTE_U | PTE_P | PTE_W)))
@@ -134,6 +134,40 @@ fork(void)
 // Challenge!
 int sfork(void)
 {
-    panic("sfork not implemented");
-    return -E_INVAL;
+    // panic("sfork not implemented");
+    envid_t envid;
+    int r;
+
+    set_pgfault_handler(pgfault);
+    envid = sys_exofork();
+    if (envid < 0)
+        panic("sfork: %e", envid);
+    else if (envid == 0)
+    {
+        thisenv = &envs[ENVX(sys_getenvid())];
+        return 0;
+    }
+
+    uint32_t addr;
+    for (int i = 0; i < PGNUM(USTACKTOP - PGSIZE); ++i)
+    {
+        addr = i << PGSHIFT;
+
+        if (!(uvpd[PDX(addr)] & PTE_P && uvpt[i] & PTE_P))
+            continue;
+        if ((r = sys_page_map(0, (void *)addr, envid, (void *)addr, PTE_U | PTE_P | PTE_W)))
+            panic("sfork: %e", r);
+    }
+
+    // make stack page copy-on-write
+    duppage(envid, PGNUM(USTACKTOP - PGSIZE));
+
+    if ((r = sys_page_alloc(envid, (void *)(UXSTACKTOP - PGSIZE), PTE_U | PTE_P | PTE_W)))
+        panic("sfork: %e", r);
+    if ((r = sys_env_set_pgfault_upcall(envid, _pgfault_upcall)))
+        panic("sfork: %e", r);
+    if ((r = sys_env_set_status(envid, ENV_RUNNABLE)))
+        panic("sfork: %e", r);
+
+    return envid;
 }
