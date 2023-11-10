@@ -70,7 +70,9 @@ KERN_BINFILES +=	user/idle \
 			user/faultbadhandler \
 			user/faultevilhandler \
 			user/forktree \
+			user/forkshare \
 			user/sendpage \
+			user/sendval \
 			user/spin \
 			user/fairness \
 			user/pingpong \
