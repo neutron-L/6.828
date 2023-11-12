@@ -142,19 +142,20 @@ devfile_write(struct Fd *fd, const void *buf, size_t n)
     // panic("devfile_write not implemented");
     int r;
     ssize_t numWrite = 0;
-    // int m = 0;
+    int bufsize = sizeof(fsipcbuf.write.req_buf);
+    char * pbuf = buf;
 
     fsipcbuf.write.req_fileid = fd->fd_file.id;
 
     while (n)
     {
-        r = MIN(n, PGSIZE);
+        r = MIN(n, bufsize);
         fsipcbuf.write.req_n = r;
-        memmove(fsipcbuf.write.req_buf, buf, r);
+        memmove(fsipcbuf.write.req_buf, pbuf, r);
         if ((r = fsipc(FSREQ_WRITE, NULL)) < 0)
             return r;
         n -= r;
-        buf += r;
+        pbuf += r;
         numWrite += r;
     }
 
