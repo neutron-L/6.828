@@ -257,7 +257,7 @@ sys_page_map(envid_t srcenvid, void *srcva,
     pp = page_lookup(srcenv->env_pgdir, srcva, &srcpte);
     if (!pp)
         return -E_INVAL;
-    if (!(perm & PTE_U) || !(perm & PTE_P) || (perm & ~(PTE_U | PTE_P | PTE_W | PTE_AVAIL)))
+    if (!(perm & PTE_U) || !(perm & PTE_P) || (perm & ~PTE_SYSCALL))
         return -E_INVAL;
 
     if ((perm & PTE_W) && !((*srcpte) & PTE_W))
@@ -351,7 +351,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 
         if (PGOFF(srcva))
             return -E_INVAL;
-        if (!(perm & PTE_U) || !(perm & PTE_P) || (perm & ~(PTE_U | PTE_P | PTE_W | PTE_AVAIL)))
+        if (!(perm & PTE_U) || !(perm & PTE_P) || (perm & ~PTE_SYSCALL))
             return -E_INVAL;
         pte = pgdir_walk(curenv->env_pgdir, srcva, 0);
 
