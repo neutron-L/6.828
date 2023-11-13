@@ -68,7 +68,14 @@ duppage(envid_t envid, unsigned pn)
     int r;
 
     // LAB 4: Your code here.
-    if (uvpt[pn] & PTE_W || uvpt[pn] & PTE_COW)
+    // if ((uvpt[pn] & PTE_SHARE) && (r = sys_page_map(0, (void *)(pn << PGSHIFT), envid, (void *)(pn << PGSHIFT), (uvpt[pn] & PTE_SYSCALL) | PTE_SHARE)))
+    //     panic("duppage: %e", r);
+    if (uvpt[pn] & PTE_SHARE)
+    {
+        if ((r = sys_page_map(0, (void *)(pn << PGSHIFT), envid, (void *)(pn << PGSHIFT), (uvpt[pn] & PTE_SYSCALL) | PTE_SHARE)))
+            panic("duppage: %e", r);
+    }
+    else if (uvpt[pn] & PTE_W || uvpt[pn] & PTE_COW)
     {
         if ((r = sys_page_map(0, (void *)(pn << PGSHIFT), envid, (void *)(pn << PGSHIFT), PTE_COW | PTE_U | PTE_P)))
             panic("duppage: %e", r);
