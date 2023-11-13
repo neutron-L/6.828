@@ -195,6 +195,12 @@ trap_dispatch(struct Trapframe *tf)
         // cprintf("Page fault\n");
         page_fault_handler(tf);
         return;
+    case IRQ_OFFSET + IRQ_KBD:
+        kbd_intr();
+        return;
+    case IRQ_OFFSET + IRQ_SERIAL:
+        serial_intr();
+        return;
     case T_SYSCALL:
         do_syscall(tf);
         return;
