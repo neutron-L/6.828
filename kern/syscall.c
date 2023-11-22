@@ -4,6 +4,7 @@
 #include <inc/error.h>
 #include <inc/string.h>
 #include <inc/assert.h>
+#include <inc/elf.h>
 
 #include <kern/env.h>
 #include <kern/pmap.h>
@@ -135,16 +136,16 @@ sys_env_set_status(envid_t envid, int status)
 static int
 sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
 {
-	// LAB 5: Your code here.
-	// Remember to check whether the user has supplied us with a good
-	// address!
-	// panic("sys_env_set_trapframe not implemented");
-    struct Env * env;
-    
+    // LAB 5: Your code here.
+    // Remember to check whether the user has supplied us with a good
+    // address!
+    // panic("sys_env_set_trapframe not implemented");
+    struct Env *env;
+
     if (envid2env(envid, &env, 1))
         return -E_BAD_ENV;
     user_mem_assert(curenv, (const void *)tf, sizeof(struct Trapframe), PTE_P | PTE_U);
-    
+
     env->env_tf = *tf;
     env->env_tf.tf_cs |= 0x3;
     env->env_tf.tf_eflags &= ~FL_IOPL_MASK;
@@ -402,11 +403,139 @@ sys_ipc_recv(void *dstva)
     // LAB 4: Your code here.
     // panic("sys_ipc_recv not implemented");
     if ((uintptr_t)dstva < UTOP && PGOFF(dstva))
-            return -E_INVAL;
+        return -E_INVAL;
     curenv->env_ipc_dstva = dstva;
 
     curenv->env_ipc_recving = 1;
     curenv->env_status = ENV_NOT_RUNNABLE;
+
+    return 0;
+}
+
+//
+// 重置栈的内容，重新设置参数
+//
+static int reset_user_stack(const char **argv)
+{
+    size_t string_size;
+    int argc, i, r;
+    char *string_store;
+    uintptr_t *argv_store;
+
+    // 1. 计算参数字符串所占空间大小
+    string_size = 0;
+    for (argc = 0; argv[argc] != NULL; ++argc)
+        string_size += strlen(argv[argc]) + 1;
+
+    string_store = USTACKTOP - string_size;
+    argv_store = (uintptr_t *)ROUNDDOWN(string_store, 4) - 4 * (argc + 1);
+    // 判断栈的空间是否足够容纳参数
+    if ((uintptr_t)(argv_store - 2) <= USTACKTOP - PGSIZE)
+        return -E_NO_MEM;
+
+    // 2. 拷贝argv参数到用户栈顶
+    for (int i = 0; i < argc; ++i)
+    {
+        argv_store[i] = string_store;
+        strcpy(string_store, argv[i]);
+        string_store += strlen(argv[i]) + 1;
+    }
+    argv_store[argc] = NULL;
+    argv_store[-1] = argv_store;
+    argv_store[-2] = argc;
+
+    curenv->env_tf.tf_esp = (uintptr_t)(argv_store - 2);
+
+    return 0;
+}
+
+static int
+sys_execv(const char **argv)
+{
+    int r;
+    char *binary = (char *)UTEMP;
+
+    // 读取新的程序段
+    struct Proghdr *ph, *eph;
+    struct Elf *elfhdr;
+
+    elfhdr = (struct Elf *)binary;
+
+    if (elfhdr->e_magic != ELF_MAGIC)
+        panic("sys_execv: %e", -E_INVAL);
+
+    ph = (struct Proghdr *)((uint8_t *)elfhdr + elfhdr->e_phoff);
+    eph = ph + elfhdr->e_phnum;
+
+    // 重置用户栈
+    reset_user_stack(argv);
+    // 重置ip
+    curenv->env_tf.tf_eip = elfhdr->e_entry;
+
+
+    // unmap old memory
+    // 暂不考虑share page
+    uintptr_t va = USTABDATA;
+    struct PageInfo *pp;
+    pte_t *pte;
+    while (va < 0xD0000000)
+    {
+        if (va < UTEMP || va >= UTEXT)
+        {
+            pp = page_lookup(curenv->env_pgdir, va, &pte);
+            if (pp && ((*pte) & PTE_U) && (r = sys_page_unmap(0, (void *)va)))
+                return r;
+        }
+
+        va += PGSIZE;
+    }
+
+    uintptr_t pva;
+    size_t memsz;
+    int off, perm, pages;
+
+    for (; ph < eph; ++ph)
+    {
+
+        if (ph->p_type != ELF_PROG_LOAD)
+            continue;
+        pva = ph->p_va;
+        va = ROUNDDOWN(pva, PGSIZE);
+        memsz = ph->p_memsz;
+        perm = PTE_P | PTE_U;
+        if (ph->p_flags & ELF_PROG_FLAG_WRITE)
+            perm |= PTE_W;
+
+        // 分配内存 拷贝二进制文件内容
+        // 必须映射为可写，即使是代码段，否则无法写入初始内容
+        pages = ROUNDUP(memsz + PGOFF(pva), PGSIZE) >> PGSHIFT;
+
+        for (int i = 0; i < pages; ++i)
+        {
+            if ((r = sys_page_alloc(0, (void *)(va + (i << PGSHIFT)), PTE_P | PTE_U | PTE_W)))
+                panic("sys_execv: %e", r);
+        }
+        memmove((void *)pva, binary + ph->p_offset, ph->p_filesz);
+
+        // 修改该段的perm
+        for (int i = 0; i < pages; ++i)
+        {
+            if ((r = sys_page_map(0, (void *)(va + (i << PGSHIFT)),0, (void *)(va + (i << PGSHIFT)), perm)))
+                panic("sys_execv: %e", r);
+        }
+    }
+
+    
+
+    // 清理binary文件内容
+    va = UTEMP;
+    while (va < UTEXT)
+    {
+        pp = page_lookup(curenv->env_pgdir, va, &pte);
+        if (pp && ((*pte) & PTE_U) && (r = sys_page_unmap(0, (void *)va)))
+            return r;
+        va += PGSIZE;
+    }
 
     return 0;
 }
@@ -442,6 +571,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
         return sys_page_unmap(a1, (void *)a2);
     case SYS_exofork:
         return sys_exofork();
+    case SYS_execv:
+        return sys_execv((const char **)a1);
     case SYS_env_set_status:
         return sys_env_set_status(a1, a2);
     case SYS_env_set_trapframe:
