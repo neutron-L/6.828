@@ -67,7 +67,7 @@ int execv(const char *pathname, const char **argv)
     // 读取
     if ((r = readn(fd, (void *)UTEMP, stat.st_size)) < 0)
         return r;
-    sys_execv(pathname, argv);
+    sys_execv(argv);
     
     return -1;
 }
