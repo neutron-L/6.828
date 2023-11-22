@@ -86,6 +86,11 @@ sys_page_unmap(envid_t envid, void *va)
 }
 
 // sys_exofork is inlined in lib.h
+int
+sys_execv(const char *pathname, const char **argv)
+{
+    return syscall(SYS_execv, 1, pathname, argv, 0, 0, 0);
+}
 
 int
 sys_env_set_status(envid_t envid, int status)
