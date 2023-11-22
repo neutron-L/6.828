@@ -51,17 +51,32 @@ int execlp(const char *program, const char **arg0, ...)
 
 int execv(const char *pathname, const char **argv)
 {
+    int r, fd;
+    struct Stat stat;
+    // 文件最大为MAXFILESIZE，比4MB稍大，假设文件不大于4MB
+    // 将文件内容读取并映射到UTEMP起始处
+    if ((r = open(pathname, O_RDONLY)) < 0)
+        return r;
+    fd = r;
+
+    if ((r = fstat(fd, &stat)) < 0)
+        return r;
+    if ((r = sys_page_alloc(thisenv->env_id, (void *)UTEMP, PTE_P | PTE_U)) < 0)
+        return r;
+    
+    // 读取
+    if ((r = readn(fd, (void *)UTEMP, stat.st_size)) < 0)
+        return r;
+    sys_execv(pathname, argv);
+    
+    return -1;
 }
 
 int execvp(const char *program, const char **argv)
 {
-    // 清理原先的进程程序段和数据段
-    // 保留打开文件部分
+    // 根据进程当前路径，构造可执行文件的完整路径
 
-    // 重置用户栈
-
-    // 载入新的程序段和数据段
-    // 设置新的程序执行点
+    // 调用execv
 }
 
 //
