@@ -8,10 +8,10 @@
 void sched_halt(void);
 
 // Choose a user environment to run and run it.
-void
-sched_yield(void)
+void sched_yield(void)
 {
-	struct Env *idle;
+    // struct Env *idle = curenv;
+    int next_id = curenv ? ENVX(curenv->env_id) : -1;
 
 	// Implement simple round-robin scheduling.
 	//
@@ -29,57 +29,66 @@ sched_yield(void)
 	// no runnable environments, simply drop through to the code
 	// below to halt the cpu.
 
-	// LAB 4: Your code here.
+    // LAB 4: Your code here.
+    for (int i = next_id + 1; i < NENV; ++i)
+        if (envs[i].env_status == ENV_RUNNABLE)
+            env_run(&envs[i]);
 
-	// sched_halt never returns
-	sched_halt();
+    for (int i = 0; i < next_id; ++i)
+        if (envs[i].env_status == ENV_RUNNABLE)
+            env_run(&envs[i]);
+
+    if (curenv && curenv->env_status == ENV_RUNNING)
+        env_run(curenv);
+    // sched_halt never returns
+    sched_halt();
 }
 
 // Halt this CPU when there is nothing to do. Wait until the
 // timer interrupt wakes it up. This function never returns.
 //
-void
-sched_halt(void)
+void sched_halt(void)
 {
-	int i;
+    int i;
 
-	// For debugging and testing purposes, if there are no runnable
-	// environments in the system, then drop into the kernel monitor.
-	for (i = 0; i < NENV; i++) {
-		if ((envs[i].env_status == ENV_RUNNABLE ||
-		     envs[i].env_status == ENV_RUNNING ||
-		     envs[i].env_status == ENV_DYING))
-			break;
-	}
-	if (i == NENV) {
-		cprintf("No runnable environments in the system!\n");
-		while (1)
-			monitor(NULL);
-	}
+    // For debugging and testing purposes, if there are no runnable
+    // environments in the system, then drop into the kernel monitor.
+    for (i = 0; i < NENV; i++)
+    {
+        if ((envs[i].env_status == ENV_RUNNABLE ||
+             envs[i].env_status == ENV_RUNNING ||
+             envs[i].env_status == ENV_DYING))
+            break;
+    }
+    if (i == NENV)
+    {
+        cprintf("No runnable environments in the system!\n");
+        while (1)
+            monitor(NULL);
+    }
 
-	// Mark that no environment is running on this CPU
-	curenv = NULL;
-	lcr3(PADDR(kern_pgdir));
+    // Mark that no environment is running on this CPU
+    curenv = NULL;
+    lcr3(PADDR(kern_pgdir));
 
-	// Mark that this CPU is in the HALT state, so that when
-	// timer interupts come in, we know we should re-acquire the
-	// big kernel lock
-	xchg(&thiscpu->cpu_status, CPU_HALTED);
+    // Mark that this CPU is in the HALT state, so that when
+    // timer interupts come in, we know we should re-acquire the
+    // big kernel lock
+    xchg(&thiscpu->cpu_status, CPU_HALTED);
 
-	// Release the big kernel lock as if we were "leaving" the kernel
-	unlock_kernel();
+    // Release the big kernel lock as if we were "leaving" the kernel
+    unlock_kernel();
 
-	// Reset stack pointer, enable interrupts and then halt.
-	asm volatile (
-		"movl $0, %%ebp\n"
-		"movl %0, %%esp\n"
-		"pushl $0\n"
-		"pushl $0\n"
-		// Uncomment the following line after completing exercise 13
-		//"sti\n"
-		"1:\n"
-		"hlt\n"
-		"jmp 1b\n"
-	: : "a" (thiscpu->cpu_ts.ts_esp0));
+    // Reset stack pointer, enable interrupts and then halt.
+    asm volatile(
+        "movl $0, %%ebp\n"
+        "movl %0, %%esp\n"
+        "pushl $0\n"
+        "pushl $0\n"
+        // Uncomment the following line after completing exercise 13
+        "sti\n"
+        "1:\n"
+        "hlt\n"
+        "jmp 1b\n"
+        : : "a"(thiscpu->cpu_ts.ts_esp0));
 }
-

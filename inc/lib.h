@@ -50,6 +50,7 @@ envid_t	sys_getenvid(void);
 int	sys_env_destroy(envid_t);
 void	sys_yield(void);
 static envid_t sys_exofork(void);
+int sys_execv(const char **argv);
 int	sys_env_set_status(envid_t env, int status);
 int	sys_env_set_trapframe(envid_t env, struct Trapframe *tf);
 int	sys_env_set_pgfault_upcall(envid_t env, void *upcall);
@@ -124,6 +125,13 @@ int     nsipc_socket(int domain, int type, int protocol);
 // spawn.c
 envid_t	spawn(const char *program, const char **argv);
 envid_t	spawnl(const char *program, const char *arg0, ...);
+
+// exec.c
+int execl(const char *pathname, const char *arg0, ...);
+int execlp(const char *program, const char *arg0, ...);
+int execv(const char *pathname, const char **argv);
+int execvp(const char *program, const char **argv);
+
 
 // console.c
 void	cputchar(int c);

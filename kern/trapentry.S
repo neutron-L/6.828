@@ -47,10 +47,123 @@
 /*
  * Lab 3: Your code here for generating entry points for the different traps.
  */
+#define HANDLER(num) num ## _handler
 
+TRAPHANDLER_NOEC(HANDLER(divide), T_DIVIDE)
+TRAPHANDLER_NOEC(HANDLER(debug), T_DEBUG)
+TRAPHANDLER_NOEC(HANDLER(nmi), T_NMI)
+TRAPHANDLER_NOEC(HANDLER(breakpoint), T_BRKPT)
+
+TRAPHANDLER_NOEC(HANDLER(overflow), T_OFLOW)
+TRAPHANDLER_NOEC(HANDLER(bound), T_BOUND)
+TRAPHANDLER_NOEC(HANDLER(illegal), T_ILLOP)
+TRAPHANDLER_NOEC(HANDLER(device), T_DEVICE)
+
+TRAPHANDLER(HANDLER(dbfault), T_DBLFLT)
+
+TRAPHANDLER_NOEC(HANDLER(tss), T_TSS)
+TRAPHANDLER_NOEC(HANDLER(segment), T_SEGNP)
+
+TRAPHANDLER_NOEC(HANDLER(stack), T_STACK)
+TRAPHANDLER(HANDLER(gpflt), T_GPFLT)
+TRAPHANDLER(HANDLER(pgflt), T_PGFLT)
+
+
+TRAPHANDLER_NOEC(HANDLER(fperr), T_FPERR)
+TRAPHANDLER(HANDLER(align), T_ALIGN)
+TRAPHANDLER_NOEC(HANDLER(mchk), T_MCHK)
+TRAPHANDLER_NOEC(HANDLER(smiderr), T_SIMDERR)
+
+TRAPHANDLER_NOEC(HANDLER(irq_timer), IRQ_OFFSET + IRQ_TIMER)
+TRAPHANDLER_NOEC(HANDLER(kbd), IRQ_OFFSET + IRQ_KBD)
+TRAPHANDLER_NOEC(HANDLER(serial), IRQ_OFFSET + IRQ_SERIAL)
+TRAPHANDLER_NOEC(HANDLER(spurious), IRQ_OFFSET + IRQ_SPURIOUS)
+TRAPHANDLER_NOEC(HANDLER(ide), IRQ_OFFSET + IRQ_IDE)
+TRAPHANDLER_NOEC(HANDLER(error), IRQ_OFFSET + IRQ_ERROR)
+
+TRAPHANDLER_NOEC(HANDLER(syscall), T_SYSCALL)
+
+.data
+    .align 4
+    .global trap_table
+trap_table:
+    .long HANDLER(divide)
+    .long HANDLER(debug)
+    .long HANDLER(nmi)
+    .long HANDLER(breakpoint)
+
+    .long HANDLER(overflow)
+    .long HANDLER(bound)
+    .long HANDLER(illegal)
+    .long HANDLER(device)
+
+    .long HANDLER(dbfault)
+    .long 0
+    .long HANDLER(tss)
+    .long HANDLER(segment)
+    
+    .long HANDLER(stack)
+    .long HANDLER(gpflt)
+    .long HANDLER(pgflt)
+    .long 0
+
+    .long HANDLER(fperr)
+    .long HANDLER(align)
+    .long HANDLER(mchk)
+    .long HANDLER(smiderr)
+
+    .long 0
+    .long 0
+    .long 0
+    .long 0
+
+    .long 0
+    .long 0
+    .long 0
+    .long 0
+
+    .long 0
+    .long 0
+    .long 0
+    .long 0
+
+    .long HANDLER(irq_timer)
+    .long HANDLER(kbd)
+    .long 0
+    .long 0 
+
+    .long HANDLER(serial)
+    .long 0
+    .long 0
+    .long HANDLER(spurious)
+
+    .long 0
+    .long 0
+    .long 0
+    .long 0
+
+    .long 0
+    .long 0
+    .long HANDLER(ide)
+    .long 0
+
+    .long HANDLER(syscall)
+    .long 0
+    .long 0
+    .long HANDLER(error)
 
 
 /*
  * Lab 3: Your code here for _alltraps
  */
-
+.text
+_alltraps:
+    pushl %ds
+    pushl %es
+    pushal
+    movw $(GD_KD), %ax
+    movw %ax, %ds
+    movw %ax, %es
+    pushl %esp
+    call trap
+    nop
