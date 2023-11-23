@@ -455,6 +455,9 @@ sys_execv(const char **argv)
     int r;
     char *binary = (char *)UTEMP;
 
+    // 设置当前程序状态为可运行
+    curenv->env_status = ENV_RUNNABLE;
+
     // 读取新的程序段
     struct Proghdr *ph, *eph;
     struct Elf *elfhdr;
@@ -472,9 +475,8 @@ sys_execv(const char **argv)
     // 重置ip
     curenv->env_tf.tf_eip = elfhdr->e_entry;
 
-
     // unmap old memory
-    // 暂不考虑share page
+    // 保留文件相关的内存区
     uintptr_t va = USTABDATA;
     struct PageInfo *pp;
     pte_t *pte;
@@ -520,12 +522,10 @@ sys_execv(const char **argv)
         // 修改该段的perm
         for (int i = 0; i < pages; ++i)
         {
-            if ((r = sys_page_map(0, (void *)(va + (i << PGSHIFT)),0, (void *)(va + (i << PGSHIFT)), perm)))
+            if ((r = sys_page_map(0, (void *)(va + (i << PGSHIFT)), 0, (void *)(va + (i << PGSHIFT)), perm)))
                 panic("sys_execv: %e", r);
         }
     }
-
-    
 
     // 清理binary文件内容
     va = UTEMP;
