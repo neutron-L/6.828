@@ -194,7 +194,9 @@ env_setup_vm(struct Env *e)
             continue;
         e->env_pgdir[pdeno] = kern_pgdir[pdeno];
         pa = PTE_ADDR(kern_pgdir[pdeno]);
-        ++(pa2page(pa))->pp_ref;
+        // 下面这行注释或者不注释都可以通过grade，个人感觉需要注释
+        // 因为env_free中没有递减关于内核地址空间的页目录项ref的代码
+        // ++(pa2page(pa))->pp_ref;
     }
 
     // UVPT maps the env's own page table read-only.
