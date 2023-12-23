@@ -158,6 +158,9 @@ void mem_init(void)
     envs = boot_alloc(NENV * sizeof(struct Env));
     memset(envs, 0, NENV * sizeof(struct Env));
 
+    cprintf("kern_pgdir: %p; \npages: %p %x;\nenvs: %p %x\n",
+     kern_pgdir, pages, npages * sizeof(struct PageInfo),envs, NENV * sizeof(struct Env));
+
     //////////////////////////////////////////////////////////////////////
     // Now that we've allocated the initial kernel data structures, we set
     // up the list of free physical pages. Once we've done so, all further

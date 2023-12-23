@@ -363,6 +363,8 @@ load_icode(struct Env *e, uint8_t *binary)
     // load each program segment (ignores ph flags)
     ph = (struct Proghdr *)((uint8_t *)elfhdr + elfhdr->e_phoff);
     eph = ph + elfhdr->e_phnum;
+    lcr3(PADDR(e->env_pgdir));
+
     for (; ph < eph; ++ph)
     {
         // alloc a region for e
@@ -383,7 +385,6 @@ load_icode(struct Env *e, uint8_t *binary)
         //     uint32_t len = MIN(ROUNDDOWN(va + PGSIZE, PGSIZE), end_va) - va;
         //     memset(KADDR(pa), 0, len);
         // }
-        lcr3(PADDR(e->env_pgdir));
         memcpy((void *)ph->p_va, binary + ph->p_offset, ph->p_filesz);
         memset((void *)(ph->p_va + ph->p_filesz), 0, ph->p_memsz - ph->p_filesz);
     }
