@@ -564,8 +564,11 @@ void env_run(struct Env *e)
         curenv->env_status = ENV_RUNNABLE;
     curenv = e;
     e->env_status = ENV_RUNNING;
+    // 最早在这里释放内核锁，再早的话还在修改进程的状态
+    // unlock_kernel();
     ++e->env_runs;
     lcr3(PADDR(e->env_pgdir));
+    // 最迟在这里释放锁，后面直接返回用户态
     unlock_kernel();
     env_pop_tf(&e->env_tf);
 
