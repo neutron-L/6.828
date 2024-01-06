@@ -226,6 +226,9 @@ trap_dispatch(struct Trapframe *tf)
      if (tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER)
     {
         lapic_eoi();
+        // BSP处理器触发的时钟中断才递增当前时间滴答数
+        if (cpunum() == 0)
+            time_tick();
         sched_yield();
         return;
     }
@@ -235,9 +238,6 @@ trap_dispatch(struct Trapframe *tf)
 	// triggered on every CPU.
 	// LAB 6: Your code here.
 
-
-	// Handle keyboard and serial interrupts.
-	// LAB 5: Your code here.
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
