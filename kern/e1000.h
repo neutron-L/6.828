@@ -41,15 +41,15 @@
 
 
 /* Transmit Descriptor bit definitions */
-#define E1000_TXD_CMD_EOP                   0x01000000 /* End of Packet */
-#define E1000_TXD_CMD_IFCS                  0x02000000 /* Insert FCS (Ethernet CRC) */
-#define E1000_TXD_CMD_IC                    0x04000000 /* Insert Checksum */
-#define E1000_TXD_CMD_RS                    0x08000000 /* Report Status */
+#define E1000_TXD_CMD_EOP                   0x01 /* End of Packet */
+#define E1000_TXD_CMD_IFCS                  0x02 /* Insert FCS (Ethernet CRC) */
+#define E1000_TXD_CMD_IC                    0x04 /* Insert Checksum */
+#define E1000_TXD_CMD_RS                    0x08 /* Report Status */
 
-#define E1000_TXD_STAT_DD                   0x00000001 /* Descriptor Done */
-#define E1000_TXD_STAT_EC                   0x00000002 /* Excess Collisions */
-#define E1000_TXD_STAT_LC                   0x00000004 /* Late Collisions */
-#define E1000_TXD_STAT_TU                   0x00000008 /* Transmit underrun */
+#define E1000_TXD_STAT_DD                   0x01 /* Descriptor Done */
+#define E1000_TXD_STAT_EC                   0x02 /* Excess Collisions */
+#define E1000_TXD_STAT_LC                   0x04 /* Late Collisions */
+#define E1000_TXD_STAT_TU                   0x08 /* Transmit underrun */
 
 #define RING_SIZE                           0x0020
 #define BUFFER_SIZE                         1518
