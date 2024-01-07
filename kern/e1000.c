@@ -26,7 +26,7 @@ int e1000_init()
 
     e1000[INDEX(E1000_TDBAL)] = PADDR(tx_queue);
     e1000[INDEX(E1000_TDBAH)] = 0;
-    e1000[INDEX(E1000_TDLEN)] = sizeof(tx_queue);
+    e1000[INDEX(E1000_TDLEN)] = RING_SIZE << 7;
     e1000[INDEX(E1000_TDH)] = e1000[INDEX(E1000_TDT)] = 0;
 
     e1000[INDEX(E1000_TCTL)] = E1000_TCTL_EN;
@@ -52,6 +52,7 @@ int e1000_transmit(void * pkt, uint32_t len)
 
     tx_queue[idx].length = len;
     memcpy(KADDR(tx_queue[idx].addr), (const void *)pkt, tx_queue[idx].length);
+    cprintf("%s", KADDR(tx_queue[idx].addr));
     tx_queue[idx].cmd = E1000_TXD_CMD_EOP | E1000_TXD_CMD_RS;
     tx_queue[idx].sta &= ~E1000_TXD_STAT_DD;
 

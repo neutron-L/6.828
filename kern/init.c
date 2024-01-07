@@ -17,6 +17,8 @@
 #include <kern/time.h>
 #include <kern/pci.h>
 
+#include <kern/e1000.h>
+
 static void boot_aps(void);
 
 
