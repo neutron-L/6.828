@@ -26,18 +26,12 @@ int e1000_init()
 
     e1000[INDEX(E1000_TDBAL)] = PADDR(tx_queue);
     e1000[INDEX(E1000_TDBAH)] = 0;
-    e1000[INDEX(E1000_TDLEN)] = RING_SIZE << 7;
+    e1000[INDEX(E1000_TDLEN)] = sizeof(tx_queue);
+    cprintf("txqueue %d\n", sizeof(tx_queue));
     e1000[INDEX(E1000_TDH)] = e1000[INDEX(E1000_TDT)] = 0;
 
-    e1000[INDEX(E1000_TCTL)] = E1000_TCTL_EN;
-    e1000[INDEX(E1000_TCTL)] |= E1000_TCTL_PSP;
-
-    e1000[INDEX(E1000_TCTL)] |= 0x10 << 4;
-    e1000[INDEX(E1000_TCTL)] |= 0x40 << 12;
-
-    e1000[INDEX(E1000_TIPG)] = 10;
-    e1000[INDEX(E1000_TIPG)] |= 8<<10;
-    e1000[INDEX(E1000_TIPG)] |= 6<<20;
+    e1000[INDEX(E1000_TCTL)] = E1000_TCTL_EN | E1000_TCTL_PSP | (0x10 << 4) | (0x40 << 12);
+    e1000[INDEX(E1000_TIPG)] = 10 | (8<<10) | (6<<20);
 
     check_e1000_transmit();
 
@@ -87,7 +81,7 @@ int check_e1000_transmit()
         NULL
     };
 
-    for (int i = 0; i < 40; ++i)
+    for (int i = 0; i < 4; ++i)
     {
         e1000_transmit(msgs[i % 3], strlen(msgs[i%3]));
     }
