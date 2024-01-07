@@ -43,22 +43,22 @@ int e1000_init()
 
 }
 
-int e1000_transmit(void * pkt)
+int e1000_transmit(void * pkt, uint32_t len)
 {
     int idx = e1000[INDEX(E1000_TDT)];
 
     if (!(tx_queue[idx].sta & E1000_TXD_STAT_DD))
         return -1;
-    tx_queue[idx].length = strlen((char *)pkt);
-    memcpy(KADDR(tx_queue[idx].addr), (const void *)pkt, tx_queue[idx].length);
-    
 
+    tx_queue[idx].length = len;
+    memcpy(KADDR(tx_queue[idx].addr), (const void *)pkt, tx_queue[idx].length);
     tx_queue[idx].cmd = E1000_TXD_CMD_EOP | E1000_TXD_CMD_RS;
     tx_queue[idx].sta &= ~E1000_TXD_STAT_DD;
 
     cprintf("%d %p %x %x\n", idx, tx_queue[idx].addr, 
     tx_queue[idx].cmd << 24 | tx_queue[idx].cso << 16 | tx_queue[idx].length,
     tx_queue[idx].special << 24 | tx_queue[idx].css << 16 | tx_queue[idx].sta);
+    
     e1000[INDEX(E1000_TDT)] = (idx + 1) % RING_SIZE;
 
     return 0;
@@ -88,7 +88,7 @@ int check_e1000_transmit()
 
     for (int i = 0; i < 40; ++i)
     {
-        e1000_transmit(msgs[i % 3]);
+        e1000_transmit(msgs[i % 3], strlen(msgs[i%3]));
     }
     return 0;
 }

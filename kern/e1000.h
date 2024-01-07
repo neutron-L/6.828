@@ -85,7 +85,7 @@ struct rx_desc
 
 
 int e1000_init();
-int e1000_transmit(void * pkt);
+int e1000_transmit(void * pkt, uint32_t);
 int pci_e1000_attach(struct pci_func *pcif);
 
 
