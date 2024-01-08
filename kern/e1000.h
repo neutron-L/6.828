@@ -33,6 +33,10 @@
 #define E1000_TDH                           0x3810   /* TX Descriptor Head (1) - RW */
 #define E1000_TDT                           0x3818   /* TX Descriptor Tail (1) - RW */
 
+#define E1000_MTA                           0x5200
+#define E1000_RAL                           0x5400
+#define E1000_RAL                           0x5404
+
 /* Transmit Control */
 #define E1000_TCTL_EN                       0x00000002    /* enable tx */
 #define E1000_TCTL_PSP                      0x00000008    /* pad short packets */
@@ -51,7 +55,18 @@
 #define E1000_TXD_STAT_LC                   0x04 /* Late Collisions */
 #define E1000_TXD_STAT_TU                   0x08 /* Transmit underrun */
 
-#define RING_SIZE                           0x0020
+/* Receive Descriptor bit definitions */
+#define E1000_RXD_STAT_DD                   0x01 /* Descriptor Done */
+#define E1000_RXD_STAT_EOP                  0x02 /* End of Packet */
+#define E1000_RXD_STAT_IXSM                 0x04 /* Ignore checksum Indication */
+#define E1000_RXD_STAT_VP                   0x08 /* Packet is 802.1Q */
+#define E1000_RXD_STAT_RSV                  0x10 /* Reservered */
+#define E1000_RXD_STAT_TCPCS                0x20 /* TCP Checksum calculated on Packet */
+#define E1000_RXD_STAT_IPCS                 0x40 /* IP Checksum calculated on Packet */
+#define E1000_RXD_STAT_PIF                  0x80 /* Passed in-exact filter */
+
+#define TX_RING_SIZE                        0x0020
+#define RX_RING_SIZE                        0x0080
 #define BUFFER_SIZE                         1518
 
 #define INDEX(OFFSET)                       ((OFFSET) >> 2)
