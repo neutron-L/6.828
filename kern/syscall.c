@@ -537,6 +537,9 @@ static int sys_time_msec(void)
 
 static int sys_transmit(void* pkt, uint32_t len)
 {
+    // check memory
+    user_mem_assert(curenv, pkt, len, PTE_U);
+
     while (e1000_transmit(pkt, len) == -1) {
         continue;
     }
