@@ -109,8 +109,11 @@ int e1000_receive(void* pkt, uint32_t * len)
     static int idx = 0;
 
     if (!(rx_queue[idx].sta & E1000_RXD_STAT_DD) || rx_queue[idx].errors)
+    {
+        cprintf("none\n");
         return -1;
-    // cprintf("len : %p\n", len);
+    }
+    // cprintf("idx : %d %d %d\n", idx,  *(uint32_t *)(KADDR(rx_queue[idx].addr)), rx_queue[idx].length);
     assert(rx_queue[idx].sta & E1000_RXD_STAT_EOP);
     memcpy(pkt, KADDR(rx_queue[idx].addr), rx_queue[idx].length);
     *len = rx_queue[idx].length - 4;
