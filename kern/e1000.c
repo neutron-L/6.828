@@ -85,13 +85,13 @@ int e1000_transmit(void* pkt, uint32_t len)
     tx_queue[idx].cmd = E1000_TXD_CMD_EOP | E1000_TXD_CMD_RS;
     tx_queue[idx].sta = 0;
 
-    cprintf(
-        "Transmit: %d %d %p %x %x\n", tx_queue[idx].length, idx,
-        tx_queue[idx].addr,
-        tx_queue[idx].cmd << 24 | tx_queue[idx].cso << 16 |
-            tx_queue[idx].length,
-        tx_queue[idx].special << 24 | tx_queue[idx].css << 16 |
-            tx_queue[idx].sta);
+    // cprintf(
+    //     "Transmit: %d %d %p %x %x\n", tx_queue[idx].length, idx,
+    //     tx_queue[idx].addr,
+    //     tx_queue[idx].cmd << 24 | tx_queue[idx].cso << 16 |
+    //         tx_queue[idx].length,
+    //     tx_queue[idx].special << 24 | tx_queue[idx].css << 16 |
+    //         tx_queue[idx].sta);
 
     e1000[INDEX(E1000_TDT)] = (idx + 1) % TX_RING_SIZE;
 
@@ -108,20 +108,16 @@ int e1000_receive(void* pkt, uint32_t * len)
 {
     static int idx = 0;
 
-    if (!(rx_queue[idx].sta & E1000_RXD_STAT_DD))
+    if (!(rx_queue[idx].sta & E1000_RXD_STAT_DD) || rx_queue[idx].errors)
         return -1;
-
-    *len = rx_queue[idx].length;
+    // cprintf("len : %p\n", len);
+    assert(rx_queue[idx].sta & E1000_RXD_STAT_EOP);
     memcpy(pkt, KADDR(rx_queue[idx].addr), rx_queue[idx].length);
+    *len = rx_queue[idx].length - 4;
 
-    cprintf(
-        "Receive: %d %d %p %x %x\n", tx_queue[idx].length, idx,
-        tx_queue[idx].addr,
-        tx_queue[idx].cmd << 24 | tx_queue[idx].cso << 16 |
-            tx_queue[idx].length,
-        tx_queue[idx].special << 24 | tx_queue[idx].css << 16 |
-            tx_queue[idx].sta);
-
+    rx_queue[idx].sta = 0;
+    // cprintf(
+    //     "Receive: %d %s(%d)\n", idx, rx_queue[idx].addr, rx_queue[idx].length);
     e1000[INDEX(E1000_RDT)] = idx;
     idx = (idx + 1) % RX_RING_SIZE;
 

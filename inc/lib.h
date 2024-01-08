@@ -64,6 +64,7 @@ unsigned int sys_time_msec(void);
 
 
 int sys_transmit(void *pkt, uint32_t len);
+int sys_receive(void *pkt, uint32_t *len);
 
 // This must be inlined.  Exercise for reader: why?
 static inline envid_t __attribute__((always_inline))

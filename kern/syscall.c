@@ -538,13 +538,28 @@ static int sys_time_msec(void)
 static int sys_transmit(void* pkt, uint32_t len)
 {
     // check memory
+    // cprintf("check mem in transmit\n");
     user_mem_assert(curenv, pkt, len, PTE_U);
+    // cprintf("done\n");
 
     while (e1000_transmit(pkt, len) == -1) {
         continue;
     }
 
     return 0;
+}
+
+
+static int sys_receive(void* pkt, uint32_t * len)
+{
+    // check memory
+    // cprintf("check mem in receive\n");
+ 
+    user_mem_assert(curenv, ROUNDDOWN(pkt, PGSIZE), PGSIZE, PTE_U | PTE_W);
+    user_mem_assert(curenv, len, 4, PTE_U | PTE_W);
+    // cprintf("done\n");
+
+    return e1000_receive(pkt, len);
 }
 
 // Dispatches to the correct kernel function, passing the arguments.
@@ -583,6 +598,7 @@ int32_t syscall(
         case SYS_ipc_recv: return sys_ipc_recv((void*)a1);
         case SYS_time_msec: return sys_time_msec();
         case SYS_transmit: return sys_transmit((void*)a1, a2);
+        case SYS_receive: return sys_receive((void*)a1, a2);
         default: return -E_INVAL;
     }
 }

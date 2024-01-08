@@ -32,7 +32,7 @@ pgfault(struct UTrapframe *utf)
     if (!(err & FEC_WR))
         panic("pgfault: not cow fault");
     if (!(uvpt[PGNUM(fault_va)] & PTE_COW))
-        panic("pgfault: not cow page");
+        panic("pgfault: %p is not cow page", fault_va);
 
     // Allocate a new page, map it at a temporary location (PFTEMP),
     // copy the data from the old page to the new page, then move the new
