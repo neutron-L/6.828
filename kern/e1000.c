@@ -7,15 +7,19 @@
 
 static volatile uint32_t* e1000;
 
-static uint8_t        rx_buffer[RX_RING_SIZE][BUFFER_SIZE];
+static uint8_t        rx_buffer[RX_RING_SIZE][RX_BUFFER_SIZE];
 static struct rx_desc rx_queue[RX_RING_SIZE] __attribute__((aligned(16)));
 
-static uint8_t        tx_buffer[TX_RING_SIZE][BUFFER_SIZE];
+static uint8_t        tx_buffer[TX_RING_SIZE][TX_BUFFER_SIZE];
 static struct tx_desc tx_queue[TX_RING_SIZE] __attribute__((aligned(16)));
 
 int e1000_init()
 {
     assert((sizeof(tx_queue) & 0x7F) == 0);
+    assert((sizeof(rx_queue) & 0x7F) == 0);
+    assert(sizeof(struct tipg) == 4);
+    assert(sizeof(struct tctl) == 4);
+    assert(sizeof(struct rctl) == 4);
 
     /* Init tx descriptor queue */
     for (int i = 0; i < TX_RING_SIZE; ++i) {
@@ -28,24 +32,47 @@ int e1000_init()
     e1000[INDEX(E1000_TDLEN)] = sizeof(tx_queue);
     e1000[INDEX(E1000_TDH)] = e1000[INDEX(E1000_TDT)] = 0;
 
-    e1000[INDEX(E1000_TCTL)] =
-        E1000_TCTL_EN | E1000_TCTL_PSP | (0x10 << 4) | (0x40 << 12);
-    e1000[INDEX(E1000_TIPG)] = 10 | (8 << 10) | (6 << 20);
+    struct tctl* reg_tctl = &e1000[INDEX(E1000_TCTL)];
+    reg_tctl->en          = 1;
+    reg_tctl->psp         = 1;
+    reg_tctl->ct          = 0x10;
+    reg_tctl->cold        = 0x40;
+
+    struct tipg* reg_tipg = &e1000[INDEX(E1000_TIPG)];
+    reg_tipg->ipgt        = 10;
+    reg_tipg->ipgr1       = 8;
+    reg_tipg->ipgr2       = 6;
+
 
     /* Init rx descriptor queue */
     for (int i = 0; i < RX_RING_SIZE; ++i) {
         rx_queue[i].addr = PADDR(&rx_buffer[i]);
     }
+
     e1000[INDEX(E1000_RDBAL)] = PADDR(rx_queue);
     e1000[INDEX(E1000_RDBAH)] = 0;
     e1000[INDEX(E1000_RDLEN)] = sizeof(rx_queue);
-    e1000[INDEX(E1000_RDH)] = 0;
-    e1000[INDEX(E1000_RDT)] = RX_RING_SIZE - 1;
+    e1000[INDEX(E1000_RDH)]   = 0;
+    e1000[INDEX(E1000_RDT)]   = RX_RING_SIZE - 1;
+
+    struct rctl* reg_rctl = &e1000[INDEX(E1000_RCTL)];
+    reg_rctl->en = 1;
+    reg_rctl->lbm = 0;
+    reg_rctl->secrc = 1;
+
+    e1000[INDEX(E1000_RAL)] = 0x12005452;
+    e1000[INDEX(E1000_RAH)] = 0x80005634; // have to set AV bit 
 
 
     // check_e1000_transmit();
 }
 
+
+/// @brief transmit packet
+/// @param pkt pointer to data
+/// @param len the length of data in bytes
+/// @return    0  transmit successfully
+///           -1  transmit failed
 int e1000_transmit(void* pkt, uint32_t len)
 {
     int idx = e1000[INDEX(E1000_TDT)];
@@ -67,6 +94,36 @@ int e1000_transmit(void* pkt, uint32_t len)
             tx_queue[idx].sta);
 
     e1000[INDEX(E1000_TDT)] = (idx + 1) % TX_RING_SIZE;
+
+    return 0;
+}
+
+
+/// @brief receive packet
+/// @param pkt pointer to buffer for receiving data
+/// @param len the length of data in bytes
+/// @return    0  receive successfully
+///           -1  receive failed
+int e1000_receive(void* pkt, uint32_t * len)
+{
+    static int idx = 0;
+
+    if (!(rx_queue[idx].sta & E1000_RXD_STAT_DD))
+        return -1;
+
+    *len = rx_queue[idx].length;
+    memcpy(pkt, KADDR(rx_queue[idx].addr), rx_queue[idx].length);
+
+    cprintf(
+        "Receive: %d %d %p %x %x\n", tx_queue[idx].length, idx,
+        tx_queue[idx].addr,
+        tx_queue[idx].cmd << 24 | tx_queue[idx].cso << 16 |
+            tx_queue[idx].length,
+        tx_queue[idx].special << 24 | tx_queue[idx].css << 16 |
+            tx_queue[idx].sta);
+
+    e1000[INDEX(E1000_RDT)] = idx;
+    idx = (idx + 1) % RX_RING_SIZE;
 
     return 0;
 }

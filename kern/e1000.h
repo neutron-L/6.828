@@ -35,16 +35,7 @@
 
 #define E1000_MTA                           0x5200   /* [127:0] Multicast Table Array (n) */
 #define E1000_RAL                           0x5400
-#define E1000_RAL                           0x5404
-
-/* Transmit Control */
-#define E1000_TCTL_EN                       0x00000002    /* enable tx */
-#define E1000_TCTL_PSP                      0x00000008    /* pad short packets */
-#define E1000_TCTL_CT                       0x00000ff0    /* collision threshold */
-#define E1000_TCTL_COLD                     0x003ff000    /* collision distance */
-
-/* Receive Control */
-
+#define E1000_RAH                           0x5404
 
 
 /* Transmit Descriptor bit definitions */
@@ -70,12 +61,78 @@
 
 #define TX_RING_SIZE                        0x0020
 #define RX_RING_SIZE                        0x0080
-#define BUFFER_SIZE                         1518
+#define TX_BUFFER_SIZE                      1518
+#define RX_BUFFER_SIZE                      0x0800
 
 #define INDEX(OFFSET)                       ((OFFSET) >> 2)
 
 
-/* ransmit Descriptor(TDESC) Definition */
+/* TIPG Register Definition */
+struct tipg
+{
+    uint32_t ipgt       : 10;
+    uint32_t ipgr1      : 10;
+    uint32_t ipgr2      : 10;
+    uint32_t reserved   : 2;
+};
+
+
+/* TCTL Register Definition */
+struct tctl
+{
+    uint32_t reserved1  : 1;
+    uint32_t en         : 1;
+    uint32_t reserved2  : 1;
+    uint32_t psp        : 1;
+    uint32_t ct         : 8;
+    uint32_t cold       : 10;
+    uint32_t swxoff     : 1;
+    uint32_t reserved3  : 1;
+    uint32_t rtlc       : 1;
+    uint32_t nrtu       : 1;
+    uint32_t reserved4  : 6;
+};
+
+
+
+/* RCTL Register Definition */
+struct rctl
+{
+    uint32_t reserved1  : 1;
+    uint32_t en         : 1;
+    uint32_t sbp        : 1;
+    uint32_t upe        : 1;
+    uint32_t mpe        : 1;
+    uint32_t lpe        : 1;
+    uint32_t lbm        : 2;
+    uint32_t rdmts      : 2;
+    uint32_t reserved2  : 2;
+    uint32_t mo         : 2;
+    uint32_t reserved3  : 1;
+
+    uint32_t bam        : 1;
+    uint32_t bsize      : 2;
+    uint32_t vfe        : 1;
+    uint32_t cfien      : 1;
+    uint32_t cfi        : 1;
+
+    uint32_t reserved4  : 1;
+    uint32_t dpf        : 1;
+
+
+    uint32_t pmcf       : 1;
+    uint32_t reserved5  : 1;
+
+    uint32_t bsex       : 1;
+    uint32_t secrc      : 1;
+
+    uint32_t reserved6  : 5;
+};
+
+
+
+
+/* Transmit Descriptor(TDESC) Definition */
 struct tx_desc
 {
     /* data */
@@ -96,7 +153,7 @@ struct rx_desc
     uint64_t addr;
     uint16_t length;
     uint16_t checksum;
-    uint8_t status;
+    uint8_t sta;
     uint8_t errors;
     uint16_t special;
 };
