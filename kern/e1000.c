@@ -30,7 +30,7 @@ int e1000_init()
 
     e1000[INDEX(E1000_TCTL)] =
         E1000_TCTL_EN | E1000_TCTL_PSP | (0x10 << 4) | (0x40 << 12);
-    e1000[INDEX(E1000_TIPG)] = 10 | (4 << 10) | (6 << 20);
+    e1000[INDEX(E1000_TIPG)] = 10 | (8 << 10) | (6 << 20);
 
     /* Init rx descriptor queue */
     for (int i = 0; i < RX_RING_SIZE; ++i) {

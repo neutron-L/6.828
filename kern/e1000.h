@@ -33,7 +33,7 @@
 #define E1000_TDH                           0x3810   /* TX Descriptor Head (1) - RW */
 #define E1000_TDT                           0x3818   /* TX Descriptor Tail (1) - RW */
 
-#define E1000_MTA                           0x5200
+#define E1000_MTA                           0x5200   /* [127:0] Multicast Table Array (n) */
 #define E1000_RAL                           0x5400
 #define E1000_RAL                           0x5404
 
@@ -42,6 +42,9 @@
 #define E1000_TCTL_PSP                      0x00000008    /* pad short packets */
 #define E1000_TCTL_CT                       0x00000ff0    /* collision threshold */
 #define E1000_TCTL_COLD                     0x003ff000    /* collision distance */
+
+/* Receive Control */
+
 
 
 /* Transmit Descriptor bit definitions */
