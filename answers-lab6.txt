@@ -1,0 +1,18 @@
+Q1. 初始化时，TDH和TDT寄存器均为0，TDT的值为网卡可处理的最后一个发送描述符的索引的下一个索引，因此
+可以将待发送的数据包与TDT的索引处的发送描述符关联，即将数据拷贝到该描述符的数据包指针指向的缓冲区，
+然后递增TDT的值。需要检查TDT处的描述符的DD位，判断该处的描述符是否已经被网卡处理完。
+如果TDT处描述符的DD位不为1，则说明此处的描述符关联的缓冲区的数据未被发送，显然，TDT的后续的描述符也必定
+未被处理，因为网卡是循环处理整个发送队列中的描述符。此时返回-1，指示系统调用稍后再尝试。我设计的系统调用是
+阻塞的。
+
+Q2. 假设发送队列大小为rx_ring_size，初始时，RDH为0，而RDT为rx_ring_size - 1，表示当前rx_ring_size-1个
+描述符可供网卡接收数据包（因为RDH和RDT相等时表示队列为空，所以我们无法使rx_ring_size个描述符同时可用）。
+本地维护一个静态局部变量idx，表示下次待读取的接收描述符的索引，显然其初始值为1。每次读取之前需要检查idx处的
+接收描述符的DD位，判断是否此时idx处的描述符上有已经接收的数据包。如果DD位不为1，则返回-1；反正，拷贝描述符的
+缓冲区中的数据，重置DD位并返回。
+该接收函数通过系统调用间接调用，而系统调用本身不是阻塞的，即如果没有待接收的数据包，直接返回-1。接收系统调用不能
+不断循环调用，每次调用后应该相隔一段时间。
+Q3. 
+This file came from JOS.
+Cheesy web page! (move from right to left, and disappear, and move from right to left again)
+Q4. maybe 2 days, the bug of bit operator and bit fileds is distressing.
